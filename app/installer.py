@@ -82,6 +82,16 @@ async def run(argv: list[str], log: list[str], sudo_password: str | None = None)
     return await proc.wait()
 
 
+def build_brew_argv(agent: dict, kind: str) -> list[str] | None:
+    """brew 源安装/更新/卸载（仅 macOS/Linux 且装有 Homebrew）。"""
+    brew = (agent.get("sources") or {}).get("brew")
+    if not brew or IS_WINDOWS or not shutil.which("brew"):
+        return None
+    formula = brew.split("/")[-1]
+    cmd = {"install": "install", "update": "upgrade", "uninstall": "uninstall"}.get(kind)
+    return ["brew", cmd, formula] if cmd else None
+
+
 def user_prefix_path_hint() -> str:
     bin_dir = USER_PREFIX / ("Scripts" if IS_WINDOWS else "bin")
     shell_rc = "~/.zshrc" if os.environ.get("SHELL", "").endswith("zsh") else "~/.bashrc"

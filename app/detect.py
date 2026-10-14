@@ -49,6 +49,13 @@ def latest_version(agent: dict) -> str | None:
             line = line.strip()
             if SEMVER_RE.fullmatch(line):
                 return line
+    brew = (agent.get("sources") or {}).get("brew")
+    if brew and shutil.which("brew"):
+        out = _run(["brew", "info", "--json=v2", brew.split("/")[-1]], timeout=30)
+        try:
+            return json.loads(out)[0]["versions"]["stable"]
+        except Exception:
+            return None
     return None
 
 
@@ -79,7 +86,9 @@ def scan_one(agent: dict) -> dict:
         "current_version": cur,
         "latest_version": latest,
         "updatable": is_updatable(cur, latest),
-        "auto_install": "npm" in (agent.get("sources") or {}),
+        "auto_install": ("npm" in (agent.get("sources") or {})
+                         or ("brew" in (agent.get("sources") or {})
+                             and shutil.which("brew") is not None)),
         "install_hint": (agent.get("sources") or {}).get("manual"),
         "notes": agent.get("notes", ""),
         "config_dirs": agent.get("config_dirs", []),

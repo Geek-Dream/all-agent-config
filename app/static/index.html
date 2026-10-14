@@ -122,6 +122,19 @@
   </div>
 </div>
 
+<!-- 更新前补丁警告模态框 -->
+<div class="modal-mask" id="updateMask">
+  <div class="modal">
+    <header><h2 id="updateTitle">⚠️ 更新将覆盖你的程序修改</h2><button onclick="closeModal('updateMask')">✕</button></header>
+    <div class="body" id="updateBody"></div>
+    <footer>
+      <button onclick="closeModal('updateMask')">取消</button>
+      <button onclick="updateDirect()">直接更新（放弃补丁）</button>
+      <button class="primary" onclick="updateSafe()">💾 备份补丁并更新（推荐）</button>
+    </footer>
+  </div>
+</div>
+
 <div id="logPanel">
   <div id="logHead"><strong>任务日志</strong><button onclick="document.getElementById('logPanel').classList.remove('open')">关闭 ✕</button></div>
   <div id="log"></div>
@@ -157,7 +170,7 @@ async function loadTools(){
     const acts = [];
     if(t.auto_install){
       if(!t.installed) acts.push(`<button onclick="act('install','${t.id}')">安装</button>`);
-      if(updatable) acts.push(`<button onclick="act('update','${t.id}')">更新</button>`);
+      if(updatable) acts.push(`<button onclick="checkUpdate('${t.id}')">更新</button>`);
       if(t.installed) acts.push(`<button class="danger" onclick="act('uninstall','${t.id}')">卸载</button>`);
     } else {
       acts.push('<span class="badge b-na">手动安装</span>');
@@ -283,6 +296,30 @@ async function confirmImport(){
   const {task_id}=await r.json();
   openLog(task_id);
 }
+
+/* ---------------- 带补丁保护的更新 ---------------- */
+let UPDATE_TARGET = null;
+
+async function checkUpdate(id){
+  const agent = TOOLS.find(t=>t.id===id);
+  const d = await (await fetch(`/api/agents/${id}/detail`)).json();
+  const p = d.patches || {};
+  const mods = [...(p.modified||[]), ...(p.added||[])];
+  if(!mods.length){ act('update', id); return; }
+  UPDATE_TARGET = id;
+  document.getElementById('updateTitle').textContent = `⚠️ 更新 ${agent.name} 将覆盖 ${mods.length} 个程序修改`;
+  document.getElementById('updateBody').innerHTML = `
+    <div class="warn">检测到你对程序本体的自定义修改（基于 v${p.pkg_version||'?'}），npm 更新会全部覆盖。</div>
+    <div style="font-size:13px;margin-bottom:8px">被修改的文件：</div>
+    <div class="files" style="max-height:180px">${mods.map(f=>'✏️ '+f).join('\n')}</div>
+    <div style="font-size:13px;margin-top:10px;color:var(--dim)">
+      「💾 备份补丁并更新」：先把修改存成快照，更新后自动尝试把修改重新打到新版本上
+      （能定位到的自动移植，定位不到的在日志里明确列出，不会静默失败）。<br>
+      「直接更新」：放弃这些修改。</div>`;
+  document.getElementById('updateMask').classList.add('open');
+}
+function updateSafe(){ closeModal('updateMask'); act('safe-update', UPDATE_TARGET); }
+function updateDirect(){ closeModal('updateMask'); act('update', UPDATE_TARGET); }
 
 function openLog(taskId){
   const panel=document.getElementById('logPanel'), logEl=document.getElementById('log');
