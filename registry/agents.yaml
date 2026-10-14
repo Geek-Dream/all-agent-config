@@ -22,6 +22,24 @@ agents:
       npm: "@anthropic-ai/claude-code"
     config_dirs: ["~/.claude"]
     session_dirs: ["~/.claude/projects"]
+    categories:
+      system:
+        - "~/.claude/settings.json"
+        - "~/.claude/keybindings.json"
+        - "~/.claude/ide.json"
+      hooks:
+        - path: "~/.claude/settings.json"
+          json_keys: ["hooks"]
+      skills: ["~/.claude/skills"]
+      mcp:
+        - path: "~/.claude.json"
+          json_keys: ["mcpServers"]
+      theme: []
+      custom:
+        - "~/.claude/CLAUDE.md"
+        - "~/.claude/statusline.sh"
+        - "~/.claude/agents"
+        - "~/.claude/commands"
     notes: 配置含 settings.json / CLAUDE.md / skills / plugins / hooks / statusline（状态栏自定义）
 
   - id: codex
@@ -33,6 +51,10 @@ agents:
       npm: "@openai/codex"
     config_dirs: ["~/.codex"]
     session_dirs: ["~/.codex/sessions"]
+    categories:
+      system: ["~/.codex/config.toml"]
+      skills: ["~/.codex/skills"]
+      custom: ["~/.codex/AGENTS.md", "~/.codex/prompts"]
     notes: 配置含 config.toml / auth / skills / agents.md
 
   - id: pi
@@ -41,10 +63,25 @@ agents:
     command: pi
     version_cmd: pi --version
     sources:
-      npm: "@mariozechner/pi-coding-agent"
+      npm: "@earendil-works/pi-coding-agent"   # 原 @mariozechner/pi-coding-agent，已迁移组织
     config_dirs: ["~/.pi"]
     session_dirs: ["~/.pi/agent/sessions"]
-    notes: 配置含 settings.json / SYSTEM.md / APPEND_SYSTEM.md / 主题与状态栏自定义
+    categories:
+      system:
+        - "~/.pi/agent/settings.json"
+        - "~/.pi/agent/models.json"
+      theme:
+        - path: "~/.pi/agent/settings.json"
+          json_keys: ["theme", "themes"]
+      skills: []
+      custom:
+        - "~/.pi/agent/statusline-pi.json"
+        - "~/.pi/agent/wl-setup.json"
+        - "~/.pi/SYSTEM.md"
+        - "~/.pi/APPEND_SYSTEM.md"
+        - "~/.pi/agent/extensions"
+        - "~/.pi/pi-extensions"
+    notes: 配置实际位于 ~/.pi/agent/；进度条/标题栏魔改在 agent/extensions 或程序包内（后者由补丁检测发现）
 
   - id: gemini-cli
     name: Gemini CLI
@@ -55,6 +92,12 @@ agents:
       npm: "@google/gemini-cli"
     config_dirs: ["~/.gemini"]
     session_dirs: []
+    categories:
+      system: ["~/.gemini/settings.json"]
+      mcp:
+        - path: "~/.gemini/settings.json"
+          json_keys: ["mcpServers"]
+      custom: ["~/.gemini/GEMINI.md"]
     notes: 配置含 settings.json / GEMINI.md / extensions
 
   - id: qwen-code
@@ -66,6 +109,12 @@ agents:
       npm: "@qwen-code/qwen-code"
     config_dirs: ["~/.qwen"]
     session_dirs: []
+    categories:
+      system: ["~/.qwen/settings.json"]
+      mcp:
+        - path: "~/.qwen/settings.json"
+          json_keys: ["mcpServers"]
+      custom: ["~/.qwen/QWEN.md"]
     notes: Gemini CLI 的 fork，配置结构与 gemini 类似
 
   - id: opencode
@@ -77,6 +126,16 @@ agents:
       npm: "opencode-ai"
     config_dirs: ["~/.config/opencode", "~/.local/share/opencode"]
     session_dirs: ["~/.local/share/opencode/storage"]
+    categories:
+      system:
+        - path: "~/.config/opencode/opencode.json"
+          json_keys: ["$schema", "theme", "model", "small_model", "autoshare", "disabled_providers", "plugin", "watcher"]
+      mcp:
+        - path: "~/.config/opencode/opencode.json"
+          json_keys: ["mcp"]
+      custom:
+        - "~/.config/opencode/agent"
+        - "~/.config/opencode/commands"
     notes: 也可用官方脚本 opencode.ai/install 安装
 
   - id: kimi-code
@@ -88,6 +147,9 @@ agents:
       npm: "@moonshot-ai/kimi-cli"   # TODO: 待验证实际包名
     config_dirs: ["~/.kimi"]
     session_dirs: []
+    categories:
+      system: ["~/.kimi/settings.json"]
+      custom: ["~/.kimi/KIMI.md"]
     notes: 安装命令待验证，npm 包名可能变化
 
   - id: crush

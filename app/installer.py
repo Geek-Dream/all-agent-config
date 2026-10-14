@@ -15,10 +15,15 @@ USER_PREFIX = Path.home() / ".aac" / "npm"
 IS_WINDOWS = os.name == "nt"
 
 
-def npm_prefix_writable() -> bool:
-    """系统 npm 全局目录是否可直接写入（不可写则需要 sudo / 提权）。"""
-    if IS_WINDOWS or not shutil.which("npm"):
+def npm_prefix_writable(command: str | None = None) -> bool:
+    """全局安装是否需要提权：优先看该工具 bin 目录（若已安装）是否可写。"""
+    if IS_WINDOWS:
         return True
+    cmd_path = shutil.which(command) if command else None
+    if cmd_path:
+        return os.access(Path(cmd_path).parent, os.W_OK)
+    if not shutil.which("npm"):
+        return False
     try:
         p = subprocess.run(
             ["npm", "config", "get", "prefix"],
@@ -36,7 +41,7 @@ def build_install_argv(agent: dict, scope: str) -> tuple[list[str], bool]:
     npm_pkg = (agent.get("sources") or {})["npm"]  # 调用方需先确认 auto_install
     if scope == "user":
         return ["npm", "install", "-g", "--prefix", str(USER_PREFIX), npm_pkg], False
-    need_sudo = not npm_prefix_writable()
+    need_sudo = not npm_prefix_writable(agent.get("command"))
     return ["npm", "install", "-g", npm_pkg], need_sudo
 
 
@@ -44,7 +49,7 @@ def build_update_argv(agent: dict, scope: str) -> tuple[list[str], bool]:
     npm_pkg = (agent.get("sources") or {})["npm"]
     if scope == "user":
         return ["npm", "install", "-g", "--prefix", str(USER_PREFIX), f"{npm_pkg}@latest"], False
-    need_sudo = not npm_prefix_writable()
+    need_sudo = not npm_prefix_writable(agent.get("command"))
     return ["npm", "update", "-g", npm_pkg], need_sudo
 
 
@@ -52,7 +57,7 @@ def build_uninstall_argv(agent: dict, scope: str) -> tuple[list[str], bool]:
     npm_pkg = (agent.get("sources") or {})["npm"]
     if scope == "user":
         return ["npm", "uninstall", "-g", "--prefix", str(USER_PREFIX), npm_pkg], False
-    need_sudo = not npm_prefix_writable()
+    need_sudo = not npm_prefix_writable(agent.get("command"))
     return ["npm", "uninstall", "-g", npm_pkg], need_sudo
 
 

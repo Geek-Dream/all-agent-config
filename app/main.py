@@ -9,12 +9,12 @@ import webbrowser
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import detect, installer, registry
+from . import bundle, categories as catmod, detect, installer, registry
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -74,7 +74,7 @@ async def api_install(agent_id: str, req: ActionReq) -> dict:
         tid = _new_task()
         asyncio.create_task(_run_task(tid, None, None))
         return {"task_id": tid}
-    if req.scope == "global" and not installer.npm_prefix_writable() and not req.sudo_password:
+    if req.scope == "global" and not installer.npm_prefix_writable(registry.get_agent(agent_id).get("command")) and not req.sudo_password:
         raise HTTPException(400, "global install requires sudo_password on this machine")
     argv, need_sudo = installer.build_install_argv(agent, req.scope)
     if need_sudo and not req.sudo_password:
@@ -117,6 +117,76 @@ def api_task(task_id: str) -> dict:
     if not task:
         raise HTTPException(404, "unknown task")
     return task
+
+
+# ------------------------------------------------------------------ M2 配置迁移
+
+class ExportReq(BaseModel):
+    categories: list[str]
+
+
+class ImportApplyReq(BaseModel):
+    filename: str
+    categories: list[str]
+
+
+@app.get("/api/agents/{agent_id}/detail")
+async def api_agent_detail(agent_id: str) -> dict:
+    agent = registry.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(404, "unknown agent")
+    return await asyncio.to_thread(catmod.agent_detail, agent)
+
+
+@app.post("/api/export/{agent_id}")
+async def api_export(agent_id: str, req: ExportReq) -> dict:
+    try:
+        out = await asyncio.to_thread(bundle.export_bundle, agent_id, req.categories)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return {"file": out.name, "size": out.stat().st_size}
+
+
+@app.get("/api/exports/{name}")
+def api_download(name: str) -> FileResponse:
+    p = bundle.EXPORTS_DIR / Path(name).name
+    if not p.is_file():
+        raise HTTPException(404, "file not found")
+    return FileResponse(p, filename=p.name)
+
+
+@app.post("/api/import/preview")
+async def api_import_preview(file: UploadFile) -> dict:
+    bundle.IMPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    dest = bundle.IMPORTS_DIR / f"{uuid.uuid4().hex[:8]}-{Path(file.filename or 'import').name}"
+    dest.write_bytes(await file.read())
+    try:
+        result = bundle.import_preview(dest)
+    except Exception as e:  # noqa: BLE001
+        dest.unlink(missing_ok=True)
+        raise HTTPException(400, f"不是有效的 .aac 包: {e}")
+    return {"filename": dest.name, **result}
+
+
+@app.post("/api/import/apply")
+async def api_import_apply(req: ImportApplyReq) -> dict:
+    path = bundle.IMPORTS_DIR / Path(req.filename).name
+    if not path.is_file():
+        raise HTTPException(404, "uploaded file not found")
+    tid = _new_task()
+    log: list[str] = TASKS[tid]["log"]  # type: ignore[index]
+    log.append(f"导入 {path.name}，分类：{', '.join(req.categories) or '（无）'}\n")
+
+    async def _apply() -> None:
+        try:
+            await asyncio.to_thread(bundle.import_apply, path, req.categories, log)
+            TASKS[tid]["status"] = "done"
+        except Exception as e:  # noqa: BLE001
+            log.append(f"\n[error] {e}\n")
+            TASKS[tid]["status"] = "failed"
+
+    asyncio.create_task(_apply())
+    return {"task_id": tid}
 
 
 def cli() -> None:
