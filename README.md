@@ -39,6 +39,12 @@ aac                    # 启动并自动打开 http://localhost:8600
   - 定位不到或不确定 → **保守跳过**并在日志里明确列出，绝不写坏文件
 - brew 源工具（如 Crush）支持自动安装/更新/卸载与版本查询（未 tap 的仓库需先 `brew tap`）
 
+### M4 云同步与自动备份
+- **WebDAV 同步**（坚果云 / Nextcloud / 群晖，零依赖实现）：一键把导出包推送到云端、从云端拉取到新机器，换机不再需要手动拷贝
+- **定时增量自动备份**：按间隔检查所选工具，配置（不含对话历史）有变化才自动导出 .aac 包，避免重复打包
+- **Windows 全局安装提权**：UAC 弹窗授权（PowerShell `-Verb RunAs`），无需在网页输入密码
+- 所有凭据仅存本机 `~/.aac/settings.json`；界面密码框不回显明文
+
 ## 目录结构
 
 ```
@@ -46,10 +52,13 @@ app/
   main.py       FastAPI 入口与 API 路由
   registry.py   注册表加载
   detect.py     已安装检测 / 版本查询（semver 比较）
-  installer.py  安装 / 更新 / 卸载（用户级与全局，sudo 提权）
+  installer.py  安装 / 更新 / 卸载（npm 用户级/全局 sudo、brew、Windows UAC 提权）
   categories.py 配置分类扫描 + 程序补丁检测（vs 官方包哈希比对）
   bundle.py     .aac 包导出 / 预览 / 应用
-  static/       Web 前端（单页，滑块式分类选择）
+  patchwork.py  补丁快照 + 锚点式三方合并移植
+  cloud.py      WebDAV 客户端（PUT/GET/PROPFIND/MKCOL）与设置存储
+  backup.py     定时增量自动备份后台任务
+  static/       Web 前端（单页，滑块式分类选择 + 设置面板）
 registry/
   agents.yaml   12+ 个 Agent 工具的安装源、配置目录与分类定义
 ```
@@ -72,8 +81,8 @@ registry/
 - [x] M1：检测 / 安装 / 更新 / 卸载（用户级 + 全局 sudo）
 - [x] M2：分类导出/导入、程序补丁检测、对话迁移
 - [x] M3：safe-update 补丁保护更新（快照 → 更新 → 锚点合并自动移植）；brew 源支持
-- [ ] M4：WebDAV / 网盘同步 .aac 包；增量备份计划任务；Windows 提权安装
-- [ ] M5：导出包加密（含 API key 时的密码保护）
+- [x] M4：WebDAV 云同步、定时增量自动备份、Windows UAC 提权
+- [ ] M5：导出包加密（含 API key 时的密码保护）；.aac 包增量压缩
 
 ## 安全说明
 

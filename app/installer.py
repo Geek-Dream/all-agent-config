@@ -61,8 +61,13 @@ def build_uninstall_argv(agent: dict, scope: str) -> tuple[list[str], bool]:
     return ["npm", "uninstall", "-g", npm_pkg], need_sudo
 
 
+ELEVATE_MARKER = "__AAC_ELEVATE__"
+
+
 async def run(argv: list[str], log: list[str], sudo_password: str | None = None) -> int:
     """执行命令，输出实时追加到 log；sudo 时把密码喂给 stdin。"""
+    if sudo_password == ELEVATE_MARKER and IS_WINDOWS:
+        return await _run_elevated_windows(argv, log)
     use_sudo = bool(sudo_password)
     full = ["sudo", "-S", "-k", "-p", ""] + argv if use_sudo else argv
     log.append(f"$ {'sudo ' if use_sudo else ''}{' '.join(argv)}\n")
@@ -80,6 +85,29 @@ async def run(argv: list[str], log: list[str], sudo_password: str | None = None)
     async for line in proc.stdout:
         log.append(line.decode(errors="replace"))
     return await proc.wait()
+
+
+async def _run_elevated_windows(argv: list[str], log: list[str]) -> int:
+    """Windows 全局安装提权：PowerShell Start-Process -Verb RunAs（弹出 UAC 确认）。"""
+    import json as _json
+    import subprocess
+    args = " ".join(_json.dumps(a) for a in argv[1:])
+    ps = (f"Start-Process -Verb RunAs -Wait -FilePath {json_quote(argv[0])} "
+          f"-ArgumentList {args}")
+    log.append(f"$ (elevated) {argv[0]} {args}\n")
+    proc = await asyncio.create_subprocess_exec(
+        "powershell", "-NoProfile", "-NonInteractive", "-Command", ps,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+    )
+    assert proc.stdout is not None
+    async for line in proc.stdout:
+        log.append(line.decode(errors="replace"))
+    return await proc.wait()
+
+
+def json_quote(s: str) -> str:
+    import json as _json
+    return _json.dumps(s)
 
 
 def build_brew_argv(agent: dict, kind: str) -> list[str] | None:
