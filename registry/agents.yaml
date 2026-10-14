@@ -16,6 +16,7 @@ agents:
   - id: claude-code
     name: Claude Code
     vendor: Anthropic
+    homepage: "https://www.anthropic.com/claude-code"
     command: claude
     version_cmd: claude --version
     sources:
@@ -45,6 +46,7 @@ agents:
   - id: codex
     name: Codex CLI
     vendor: OpenAI
+    homepage: "https://openai.com/codex/"
     command: codex
     version_cmd: codex --version
     sources:
@@ -60,6 +62,7 @@ agents:
   - id: pi
     name: Pi
     vendor: Mario Zechner
+    homepage: "https://github.com/badlogic/pi-mono"
     command: pi
     version_cmd: pi --version
     sources:
@@ -73,7 +76,7 @@ agents:
       theme:
         - path: "~/.pi/agent/settings.json"
           json_keys: ["theme", "themes"]
-      skills: []
+      skills: ["~/.pi/agent/skills", "~/.pi/pi-extensions/skills"]
       custom:
         - "~/.pi/agent/statusline-pi.json"
         - "~/.pi/agent/wl-setup.json"
@@ -86,6 +89,7 @@ agents:
   - id: gemini-cli
     name: Gemini CLI
     vendor: Google
+    homepage: "https://github.com/google-gemini/gemini-cli"
     command: gemini
     version_cmd: gemini --version
     sources:
@@ -103,6 +107,7 @@ agents:
   - id: qwen-code
     name: Qwen Code
     vendor: Alibaba
+    homepage: "https://github.com/QwenLM/qwen-code"
     command: qwen
     version_cmd: qwen --version
     sources:
@@ -120,6 +125,7 @@ agents:
   - id: opencode
     name: OpenCode
     vendor: SST / anomaly
+    homepage: "https://opencode.ai"
     command: opencode
     version_cmd: opencode --version
     sources:
@@ -141,24 +147,34 @@ agents:
   - id: kimi-code
     name: Kimi Code
     vendor: Moonshot AI
+    homepage: "https://code.kimi.com"
     command: kimi
     version_cmd: kimi --version
+    bin_paths: ["~/.kimi-code/bin"]        # 独立二进制，不经 npm，也不在 PATH
+    managed_files: ["bin", "cache", "updates"]   # 卸载时只删程序文件，保留配置/会话/skills（内置自动更新，不提供更新按钮）
     sources:
-      npm: "@moonshot-ai/kimi-cli"   # TODO: 待验证实际包名
-    config_dirs: ["~/.kimi"]
-    session_dirs: []
+      manual: "官方脚本安装到 ~/.kimi-code（独立二进制，内置自动更新）"
+    config_dirs: ["~/.kimi-code"]
+    session_dirs: ["~/.kimi-code/sessions"]
     categories:
-      system: ["~/.kimi/settings.json"]
-      custom: ["~/.kimi/KIMI.md"]
-    notes: 安装命令待验证，npm 包名可能变化
+      system:
+        - "~/.kimi-code/config.toml"
+        - "~/.kimi-code/tui.toml"
+      skills: ["~/.kimi-code/skills"]
+      custom:
+        - "~/.kimi-code/workspaces.json"
+        - "~/.kimi-code/workspace-trust"
+    notes: 独立二进制版（~/.kimi-code），内置自动更新；credentials / oauth 凭据不纳入导出
 
   - id: crush
     name: Crush
     vendor: Charmbracelet
+    homepage: "https://github.com/charmbracelet/crush"
     command: crush
     version_cmd: crush --version
     sources:
       brew: "charmbracelet/tap/crush"   # Go 二进制，npm 无官方包
+      scoop: "crush"                    # Windows: scoop install crush
       manual: "brew install charmbracelet/tap/crush ｜ Windows: scoop install crush"
     config_dirs: ["~/.config/crush"]
     session_dirs: []
@@ -167,6 +183,7 @@ agents:
   - id: grok-build
     name: Grok Build
     vendor: xAI
+    homepage: "https://x.ai"
     command: grok
     version_cmd: grok --version
     sources:
@@ -178,6 +195,7 @@ agents:
   - id: deepseek-tui
     name: DeepSeek-TUI
     vendor: Community
+    homepage: "https://github.com/search?q=deepseek-tui&type=repositories"
     command: deepseek-tui
     version_cmd: deepseek-tui --version
     sources:
@@ -189,6 +207,7 @@ agents:
   - id: zcode
     name: ZCode
     vendor: Zed Industries
+    homepage: "https://zed.dev"
     command: zcode
     version_cmd: zcode --version
     sources:
@@ -200,6 +219,7 @@ agents:
   - id: mimo-code
     name: MiMo Code
     vendor: Xiaomi
+    homepage: "https://github.com/XiaomiMiMo"
     command: mimo
     version_cmd: mimo --version
     sources:
@@ -207,3 +227,105 @@ agents:
     config_dirs: ["~/.mimo"]
     session_dirs: []
     notes: 安装方式待确认，先占位
+
+  - id: amp
+    name: Amp
+    vendor: Sourcegraph
+    command: amp
+    version_cmd: amp --version
+    homepage: "https://ampcode.com"
+    sources:
+      npm: "@sourcegraph/amp"
+    config_dirs: ["~/.config/amp"]
+    session_dirs: []
+    categories:
+      system: ["~/.config/amp/settings.json"]
+    notes: Sourcegraph 的 Agent CLI
+
+  - id: copilot-cli
+    name: GitHub Copilot CLI
+    vendor: GitHub
+    command: copilot
+    version_cmd: copilot --version
+    homepage: "https://github.com/features/copilot"
+    sources:
+      npm: "@github/copilot"
+    config_dirs: ["~/.copilot"]
+    session_dirs: ["~/.copilot/history-session-state"]
+    categories:
+      system: ["~/.copilot/config.json"]
+      custom: ["~/.copilot/agents"]
+    notes: GitHub 官方 Copilot 终端 Agent
+
+  - id: auggie
+    name: Auggie
+    vendor: Augment Code
+    command: auggie
+    version_cmd: auggie --version
+    homepage: "https://www.augmentcode.com"
+    sources:
+      npm: "@augmentcode/auggie"
+    config_dirs: ["~/.augment"]
+    session_dirs: []
+    categories:
+      system: ["~/.augment/settings.json"]
+    notes: Augment Code 的 Agent CLI
+
+  - id: continue-cli
+    name: Continue CLI
+    vendor: Continue
+    command: cn
+    version_cmd: cn --version
+    homepage: "https://www.continue.dev"
+    sources:
+      npm: "@continuedev/cli"
+    config_dirs: ["~/.continue"]
+    session_dirs: ["~/.continue/sessions"]
+    categories:
+      system: ["~/.continue/config.yaml"]
+      custom: ["~/.continue/agents"]
+    notes: 开源 Agent，终端命令为 cn
+
+  - id: aider
+    name: Aider
+    vendor: Paul Gauthier
+    command: aider
+    version_cmd: aider --version
+    homepage: "https://aider.chat"
+    sources:
+      pipx: "aider-chat"               # Python 生态：pipx install aider-chat
+      manual: "pipx install aider-chat（需 Python 3.8+）"
+    config_dirs: ["~/.aider"]
+    session_dirs: []
+    categories:
+      system: ["~/.aider/aider.conf.yml"]
+    notes: Python 实现的终端结对编程 Agent
+
+  - id: goose
+    name: Goose
+    vendor: Block
+    command: goose
+    version_cmd: goose --version
+    homepage: "https://block.github.io/goose"
+    sources:
+      brew: "block/goose/goose"
+      manual: "curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash"
+    config_dirs: ["~/.config/goose"]
+    session_dirs: ["~/.local/share/goose/sessions"]
+    categories:
+      system: ["~/.config/goose/config.yaml"]
+    notes: Block 开源的本地 Agent 框架
+
+  - id: cursor-agent
+    name: Cursor Agent
+    vendor: Anysphere
+    command: cursor-agent
+    version_cmd: cursor-agent --version
+    homepage: "https://cursor.com"
+    sources:
+      manual: "curl https://cursor.com/install -fsS | bash"
+    config_dirs: ["~/.cursor"]
+    session_dirs: []
+    categories:
+      system: ["~/.cursor/cli-config.json"]
+    notes: Cursor 的终端 Agent，官方脚本安装

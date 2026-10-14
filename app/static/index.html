@@ -1,103 +1,430 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>All Agent Config — AI Agent 装机中心</title>
 <style>
-  :root { --bg:#0d1117; --panel:#161b22; --border:#30363d; --fg:#e6edf3; --dim:#8b949e;
-          --green:#3fb950; --orange:#d29922; --gray:#6e7681; --blue:#58a6ff; --red:#f85149; }
+  /* ================= 三套主题 ================= */
+  :root, [data-theme="dark"] {
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#30363d;
+    --fg:#e6edf3; --dim:#8b949e;
+    --green:#3fb950; --orange:#d29922; --gray:#6e7681; --blue:#58a6ff; --red:#f85149;
+    --accent:#58a6ff; --accent-fg:#0d1117; --glow:none;
+    --btn-bg:#21262d;
+    --log-bg:#010409; --log-fg:#a5d6ff;
+    --shadow:0 8px 30px rgba(0,0,0,.35);
+    --radius:12px;
+    --spring:cubic-bezier(.34,1.4,.64,1);
+  }
+  [data-theme="light"] {
+    --bg:#f4f6fa; --panel:#ffffff; --panel2:#f0f3f8; --border:#dde3ec;
+    --fg:#1f2430; --dim:#68738a;
+    --green:#1a7f37; --orange:#b08800; --gray:#8a93a6; --blue:#2563eb; --red:#d6362c;
+    --accent:#2563eb; --accent-fg:#ffffff; --glow:none;
+    --btn-bg:#eef1f7;
+    --log-bg:#f5f7fb; --log-fg:#3a4a63;
+    --shadow:0 8px 30px rgba(31,36,48,.10);
+    --radius:12px;
+  }
+  [data-theme="tech"] {
+    --bg:#080400; --panel:#140b02; --panel2:#1d1104; --border:#3d2512;
+    --fg:#ffe9d2; --dim:#96765a;
+    --green:#a4e34d; --orange:#ffb02e; --gray:#6b543c; --blue:#ff9e2c; --red:#ff5a4d;
+    --accent:#ff9e2c; --accent2:#ffc42e; --accent-fg:#1a0d00;
+    --glow:0 0 8px rgba(255,158,44,.55), 0 0 24px rgba(255,158,44,.18);
+    --btn-bg:#1e1206;
+    --log-bg:#050200; --log-fg:#ffcf8f;
+    --shadow:0 8px 30px rgba(255,158,44,.10);
+    --radius:12px;
+  }
+
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--fg); font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
-  header { padding:20px 28px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
-  header h1 { font-size:18px; }
+  html { scroll-behavior:smooth; }
+  html, body { min-height:100%; }
+  body { background:var(--bg); color:var(--fg); font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+         transition:background-color .45s ease, color .45s ease; }
+
+  /* 全局颜色随主题平滑过渡 */
+  header, main, .toolbar, table, th, td, .modal, .badge, button, input, .cat-row,
+  .sw i, #logPanel, #logHead, #toast, .warn {
+    transition:background-color .45s ease, border-color .45s ease, color .45s ease,
+               box-shadow .45s ease, background .45s ease;
+  }
+
+  button:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* ================= 科技主题：橘黄黑夜空 + 流星 ================= */
+  /* 底层：暖色氛围光 + 细网格 */
+  [data-theme="tech"] body::before {
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(600px 300px at 15% -5%, rgba(255,158,44,.13), transparent 60%),
+      radial-gradient(700px 350px at 90% 0%, rgba(255,90,20,.10), transparent 60%),
+      radial-gradient(500px 260px at 50% 110%, rgba(255,196,46,.06), transparent 60%),
+      linear-gradient(rgba(255,158,44,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,158,44,.05) 1px, transparent 1px);
+    background-size:auto, auto, auto, 42px 42px, 42px 42px;
+    animation:gridDrift 18s linear infinite;
+  }
+  @keyframes gridDrift { from { background-position:0 0, 0 0, 0 0, 0 0, 0 0; } to { background-position:0 0, 0 0, 0 0, 42px 42px, 42px 42px; } }
+
+  /* 特效层：流星 + 扫描线 */
+  .fx { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; display:none; }
+  [data-theme="tech"] .fx { display:block; }
+  .meteor { position:absolute; top:-4%; width:3px; height:3px; border-radius:50%;
+    background:#fff8ee; opacity:0;
+    box-shadow:0 0 6px 2px rgba(255,190,80,.9), 0 0 18px 6px rgba(255,140,30,.35);
+    transform:rotate(215deg); }
+  .meteor::after { content:""; position:absolute; top:50%; left:50%; width:var(--ml,160px); height:2px;
+    transform:translateY(-50%);
+    background:linear-gradient(90deg, rgba(255,190,90,.95), rgba(255,140,30,.45) 55%, transparent);
+    border-radius:2px; }
+  .meteor.m1 { left:8%;  --ml:170px; animation:meteorFly 5.2s linear infinite; }
+  .meteor.m2 { left:22%; --ml:120px; animation:meteorFly 7.5s linear infinite -2.8s; }
+  .meteor.m3 { left:2%;  --ml:200px; animation:meteorFly 6.3s linear infinite -4.6s; }
+  .meteor.m4 { left:38%; --ml:100px; animation:meteorFly 9s   linear infinite -6.5s; }
+  .meteor.m5 { left:15%; --ml:140px; animation:meteorFly 11s  linear infinite -8.2s; }
+  @keyframes meteorFly {
+    0%   { transform:rotate(215deg) translateX(0);        opacity:0; }
+    3%   { opacity:1; }
+    28%  { transform:rotate(215deg) translateX(-120vmax); opacity:1; }
+    32%, 100% { transform:rotate(215deg) translateX(-130vmax); opacity:0; }
+  }
+  .scanline { position:absolute; left:0; right:0; height:160px; top:-25%;
+    background:linear-gradient(180deg, transparent, rgba(255,158,44,.05) 42%, rgba(255,158,44,.11) 50%, rgba(255,158,44,.05) 58%, transparent);
+    animation:scanDown 9s linear infinite; }
+  @keyframes scanDown { to { top:115%; } }
+
+  header { padding:20px 28px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px;
+           flex-wrap:wrap; position:relative; z-index:1; animation:fadeDown .5s ease both; }
+  /* 科技主题：顶栏底部跑马灯激光条 */
+  [data-theme="tech"] header { border-bottom:none; }
+  [data-theme="tech"] header::after {
+    content:""; position:absolute; left:0; right:0; bottom:0; height:2px;
+    background:repeating-linear-gradient(90deg, var(--accent) 0 18px, transparent 18px 42px);
+    animation:marquee 2.6s linear infinite;
+    filter:drop-shadow(0 0 5px var(--accent));
+  }
+  @keyframes marquee { from { background-position:0 0; } to { background-position:-84px 0; } }
+
+  header h1 { font-size:18px; cursor:default; }
+  header h1 .gear { display:inline-block; transition:transform .7s var(--spring); -webkit-text-fill-color:initial; }
+  header h1:hover .gear { transform:rotate(200deg); }
+  [data-theme="tech"] header h1 {
+    background:linear-gradient(90deg, var(--accent), var(--accent2), var(--accent));
+    background-size:200% 100%;
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    animation:hueFlow 6s linear infinite;
+  }
+  [data-theme="tech"] header h1 .gear { -webkit-text-fill-color:initial; }
+  @keyframes hueFlow { to { background-position:200% 0; } }
   header .sub { color:var(--dim); font-size:12px; }
-  main { padding:20px 28px; max-width:1240px; }
-  .toolbar { background:var(--panel); border:1px solid var(--border); border-radius:10px;
-             padding:14px 16px; display:flex; gap:18px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
-  .toolbar label { color:var(--dim); font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer; }
+
+  /* ================= 主题切换器（右上角，滑动指示块） ================= */
+  .theme-switch { margin-left:auto; display:flex; align-items:center; gap:2px;
+                  background:var(--panel); border:1px solid var(--border); border-radius:999px;
+                  padding:4px; box-shadow:var(--shadow); position:relative; z-index:1; }
+  .theme-switch .indicator { position:absolute; top:4px; bottom:4px; left:4px; width:0;
+                             background:var(--accent); border-radius:999px; box-shadow:var(--glow);
+                             transition:left .38s var(--spring), width .38s var(--spring),
+                                        background-color .45s ease, box-shadow .45s ease; }
+  .theme-switch button { border:none; background:transparent; color:var(--dim); border-radius:999px;
+                         padding:5px 14px; font-size:13px; display:flex; align-items:center; gap:6px;
+                         transition:color .3s ease, transform .2s ease; position:relative; z-index:1; overflow:visible; }
+  .theme-switch button:hover:not(.on) { color:var(--fg); transform:translateY(-1px); }
+  .theme-switch button.on { color:var(--accent-fg); font-weight:600; }
+  .theme-switch button.on:hover { transform:none; box-shadow:none; }
+
+  main { padding:20px 28px; max-width:1240px; margin:0 auto; position:relative; z-index:1; animation:fadeUp .55s ease both .08s; }
+  .toolbar { background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+             padding:14px 16px; display:flex; gap:18px; align-items:center; flex-wrap:wrap; margin-bottom:18px;
+             box-shadow:var(--shadow); }
+  .toolbar label { color:var(--dim); font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;
+                   transition:color .2s ease; }
+  .toolbar label:hover { color:var(--fg); }
   .toolbar input[type=password], .toolbar input[type=text] { background:var(--bg); border:1px solid var(--border);
-      border-radius:6px; color:var(--fg); padding:6px 10px; width:180px; }
-  button { background:#21262d; border:1px solid var(--border); color:var(--fg); border-radius:6px;
-           padding:6px 14px; cursor:pointer; font-size:13px; }
-  button:hover:not(:disabled) { border-color:var(--blue); color:var(--blue); }
+      border-radius:6px; color:var(--fg); padding:6px 10px; width:180px; transition:border-color .25s, box-shadow .25s; }
+  .toolbar input:focus, .modal input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+
+  /* ================= 按钮：涟漪 + 上浮 + 扫光 + 加载圈 ================= */
+  button { background:var(--btn-bg); border:1px solid var(--border); color:var(--fg); border-radius:6px;
+           padding:6px 14px; cursor:pointer; font-size:13px; transition:all .22s ease;
+           position:relative; overflow:hidden; }
+  button:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); transform:translateY(-2px); box-shadow:var(--glow); }
+  button:active:not(:disabled) { transform:translateY(0) scale(.95); }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  button.primary { background:var(--blue); border-color:var(--blue); color:#0d1117; font-weight:600; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-fg); font-weight:600; }
+  button.primary:hover:not(:disabled) { color:var(--accent-fg); filter:brightness(1.12); box-shadow:var(--glow); }
+  [data-theme="tech"] button.primary { background:linear-gradient(90deg, var(--accent), var(--accent2));
+    background-size:160% 100%; border:none; transition:all .35s ease; }
+  [data-theme="tech"] button.primary:hover:not(:disabled) { background-position:80% 0; filter:none; }
+  /* 主按钮悬停扫光 */
+  button.primary::before { content:""; position:absolute; top:0; left:-75%; width:45%; height:100%;
+    background:linear-gradient(105deg, transparent, rgba(255,255,255,.38), transparent);
+    transform:skewX(-20deg); transition:left .6s ease; pointer-events:none; }
+  button.primary:hover:not(:disabled)::before { left:135%; }
   button.danger:hover { border-color:var(--red); color:var(--red); }
-  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  /* 更新按钮：悬停绿色 */
+  button.upd:hover:not(:disabled) { border-color:var(--green); color:var(--green);
+    box-shadow:0 0 8px color-mix(in srgb, var(--green) 30%, transparent); }
+  /* 重试按钮：黄色 + 呼吸提示 */
+  button.retry { border-color:color-mix(in srgb, var(--orange) 55%, var(--border)); color:var(--orange);
+    animation:retryPulse 2s ease-in-out infinite; }
+  button.retry:hover:not(:disabled) { border-color:var(--orange); color:var(--orange);
+    box-shadow:0 0 8px color-mix(in srgb, var(--orange) 35%, transparent); }
+  @keyframes retryPulse {
+    0%, 100% { box-shadow:0 0 0 0 color-mix(in srgb, var(--orange) 30%, transparent); }
+    50% { box-shadow:0 0 0 5px transparent; }
+  }
+  /* 点击涟漪 */
+  .ripple { position:absolute; border-radius:50%; background:currentColor; opacity:.28;
+            transform:scale(0); animation:ripple .55s ease-out forwards; pointer-events:none; }
+  @keyframes ripple { to { transform:scale(2.8); opacity:0; } }
+  /* 加载中的小圈 */
+  button.loading { pointer-events:none; }
+  button.loading::after { content:""; display:inline-block; width:12px; height:12px; margin-left:8px;
+    border:2px solid currentColor; border-top-color:transparent; border-radius:50%;
+    animation:rot .7s linear infinite; vertical-align:-2px; }
+  @keyframes rot { to { transform:rotate(360deg); } }
+
+  /* 汇总文字更新时弹跳一下 */
+  #summary { display:inline-block; }
+  #summary.pop { animation:sumPop .45s var(--spring); }
+  @keyframes sumPop { 0% { transform:scale(.85); opacity:.3; } 100% { transform:scale(1); opacity:1; } }
+
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--border);
+          border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); animation:fadeUp .5s ease both .15s; }
   th, td { padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); vertical-align:middle; }
   th { color:var(--dim); font-weight:500; font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+  tbody tr { transition:background-color .2s ease; animation:rowIn .4s ease both; }
+  tbody tr:hover { background:color-mix(in srgb, var(--accent) 7%, transparent); }
+  tbody tr:hover td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
   tr:last-child td { border-bottom:none; }
-  .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; }
+
+  /* 骨架屏（扫描时） */
+  .skel { height:14px; border-radius:6px;
+    background:linear-gradient(90deg, var(--panel2) 25%, color-mix(in srgb, var(--dim) 20%, var(--panel2)) 50%, var(--panel2) 75%);
+    background-size:200% 100%; animation:shimmer 1.2s linear infinite; }
+  @keyframes shimmer { from { background-position:180% 0; } to { background-position:-80% 0; } }
+
+  /* 安装位置徽标 */
+  .b-scope-user { background:color-mix(in srgb, var(--green) 13%, transparent); color:var(--green); }
+  .b-scope-global { background:color-mix(in srgb, var(--blue) 13%, transparent); color:var(--blue); }
+  .scope-path { display:block; color:var(--dim); font-size:11px; font-family:ui-monospace,Menlo,monospace; margin-top:4px; }
+
+  /* 筛选标签（全部 / 用户安装 / 全局安装） */
+  .filter-bar { display:flex; align-items:center; gap:12px; margin-bottom:14px; animation:fadeUp .5s ease both .12s; }
+  .filter-tabs { display:flex; gap:3px; background:var(--panel); border:1px solid var(--border);
+                 border-radius:9px; padding:3px; box-shadow:var(--shadow); }
+  .filter-tabs button { border:none; background:transparent; color:var(--dim); border-radius:6px;
+                        padding:5px 13px; font-size:12.5px; transition:all .25s ease; overflow:visible; }
+  .filter-tabs button:hover:not(.on) { color:var(--fg); transform:none; box-shadow:none; }
+  .filter-tabs button.on { background:var(--accent); color:var(--accent-fg); font-weight:600; box-shadow:var(--glow); }
+  .filter-tabs button .cnt { opacity:.75; font-size:11px; margin-left:3px; }
+  .filter-hint { color:var(--dim); font-size:12px; }
+
+  .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; transition:all .3s ease; }
   .b-ok { background:rgba(63,185,80,.15); color:var(--green); }
   .b-no { background:rgba(110,118,129,.15); color:var(--gray); }
-  .b-up { background:rgba(210,153,34,.15); color:var(--orange); }
+  .b-up { background:rgba(210,153,34,.15); color:var(--orange); animation:badgePulse 2.2s ease-in-out infinite; }
   .b-na { background:rgba(139,148,158,.12); color:var(--dim); }
   .b-patch { background:rgba(88,166,255,.15); color:var(--blue); }
+  [data-theme="light"] .b-ok { background:rgba(26,127,55,.12); }
+  [data-theme="light"] .b-up { background:rgba(176,136,0,.12); }
+  [data-theme="tech"] .b-up { background:rgba(255,176,46,.15); }
+  [data-theme="tech"] .b-ok { box-shadow:0 0 10px rgba(164,227,77,.25); }
+  @keyframes badgePulse {
+    0%, 100% { box-shadow:0 0 0 0 color-mix(in srgb, var(--orange) 40%, transparent); }
+    50% { box-shadow:0 0 0 6px transparent; }
+  }
   .ver { font-family:ui-monospace,Menlo,monospace; font-size:13px; }
   .acts { display:flex; gap:6px; flex-wrap:wrap; }
   .notes { color:var(--dim); font-size:12px; max-width:250px; }
+
   /* 滑块开关 */
   .sw { position:relative; width:40px; height:22px; display:inline-block; flex:none; }
   .sw input { opacity:0; width:0; height:0; }
-  .sw i { position:absolute; inset:0; background:#30363d; border-radius:999px; transition:.15s; }
-  .sw i:before { content:""; position:absolute; width:16px; height:16px; border-radius:50%; background:#8b949e; top:3px; left:3px; transition:.15s; }
+  .sw i { position:absolute; inset:0; background:var(--border); border-radius:999px; transition:.25s; }
+  .sw i:before { content:""; position:absolute; width:16px; height:16px; border-radius:50%; background:var(--dim); top:3px; left:3px;
+                 transition:.25s var(--spring); }
   .sw input:checked + i { background:rgba(63,185,80,.4); }
+  [data-theme="light"] .sw input:checked + i { background:rgba(26,127,55,.35); }
   .sw input:checked + i:before { transform:translateX(18px); background:var(--green); }
+  [data-theme="tech"] .sw input:checked + i { box-shadow:0 0 10px rgba(164,227,77,.5); }
   .sw input:disabled + i { opacity:.4; }
-  /* 模态框 */
-  .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:20; }
-  .modal-mask.open { display:flex; }
-  .modal { background:var(--panel); border:1px solid var(--border); border-radius:12px; width:min(680px,94vw);
-           max-height:84vh; display:flex; flex-direction:column; }
-  .modal header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+
+  /* 模态框：弹性弹出 + 背景模糊 */
+  .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center;
+                z-index:20; opacity:0; pointer-events:none; transition:opacity .28s ease;
+                backdrop-filter:blur(3px) saturate(1.1); }
+  .modal-mask.open { opacity:1; pointer-events:auto; }
+  .modal { background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); width:min(680px,94vw);
+           max-height:84vh; display:flex; flex-direction:column; box-shadow:var(--shadow);
+           transform:translateY(20px) scale(.94); opacity:0;
+           transition:transform .34s var(--spring), opacity .28s ease; }
+  .modal-mask.open .modal { transform:translateY(0) scale(1); opacity:1; }
+  .modal.modal-lg { width:min(760px,94vw); }
+  [data-theme="tech"] .modal { box-shadow:0 0 0 1px rgba(255,158,44,.25), var(--shadow); }
+  .modal header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; animation:none; }
   .modal header h2 { font-size:15px; }
   .modal .body { padding:14px 18px; overflow:auto; }
   .modal footer { padding:12px 18px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
-  .cat-row { display:flex; align-items:center; gap:12px; padding:9px 6px; border-bottom:1px solid var(--border); }
+  .modal input[type=text], .modal input[type=password] { background:var(--bg); border:1px solid var(--border);
+      border-radius:6px; color:var(--fg); padding:6px 10px; }
+  .cat-row { display:flex; align-items:center; gap:12px; padding:9px 8px; border-bottom:1px solid var(--border);
+             border-radius:8px; transition:background-color .2s ease; }
   .cat-row:last-child { border-bottom:none; }
-  .cat-row .info { flex:1; }
+  .cat-row:hover { background:color-mix(in srgb, var(--accent) 6%, transparent); }
+  .cat-row .info { flex:1; min-width:0; }
   .cat-row .info b { font-size:14px; }
-  .cat-row .info .meta { color:var(--dim); font-size:12px; }
+  .cat-row .info .meta { color:var(--dim); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cat-row .files { color:var(--dim); font-size:12px; font-family:ui-monospace,Menlo,monospace;
                     background:var(--bg); border-radius:6px; padding:6px 10px; margin-top:6px;
                     max-height:120px; overflow:auto; white-space:pre-wrap; }
   .warn { background:rgba(210,153,34,.12); border:1px solid rgba(210,153,34,.4); color:var(--orange);
           border-radius:8px; padding:8px 12px; margin-bottom:10px; font-size:13px; }
-  #logPanel { position:fixed; right:0; bottom:0; width:min(640px,100%); height:45vh; background:#010409;
-      border:1px solid var(--border); border-right:none; border-bottom:none; border-radius:10px 0 0 0;
-      display:none; flex-direction:column; z-index:9; }
-  #logPanel.open { display:flex; }
-  #logHead { padding:8px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
-  #log { flex:1; overflow:auto; padding:10px 14px; font:12px/1.5 ui-monospace,Menlo,monospace; color:#a5d6ff; white-space:pre-wrap; }
-  #toast { position:fixed; top:16px; left:50%; transform:translateX(-50%); background:var(--panel);
-      border:1px solid var(--border); padding:8px 18px; border-radius:8px; display:none; z-index:99; }
+
+  /* ================= 配置详情 ================= */
+  .cfg-summary { display:flex; align-items:center; gap:6px; margin:2px 2px 14px;
+                 color:var(--dim); font-size:12.5px; }
+  .cfg-summary b { color:var(--green); font-weight:600; }
+  .group { background:var(--panel2); border:1px solid var(--border); border-radius:10px;
+           padding:4px 10px 6px; margin-bottom:12px; animation:fadeUp .4s ease both; }
+  [data-theme="tech"] .group { border-color:color-mix(in srgb, var(--accent) 22%, var(--border)); }
+  .group-head { display:flex; align-items:center; gap:9px; padding:9px 4px 8px;
+                font-size:13px; font-weight:600; cursor:pointer; user-select:none; border-radius:8px;
+                transition:background-color .2s ease; }
+  .group-head:hover { background:color-mix(in srgb, var(--accent) 5%, transparent); }
+  .g-caret { color:var(--dim); font-size:10px; transition:transform .3s var(--spring); }
+  .group.collapsed .g-caret { transform:rotate(-90deg); }
+  .group-body { display:grid; grid-template-rows:1fr; opacity:1;
+                transition:grid-template-rows .35s ease, opacity .3s ease; }
+  .group-body > .group-wrap { overflow:hidden; min-height:0; }
+  .group.collapsed .group-body { grid-template-rows:0fr; opacity:0; }
+  .g-ico { width:26px; height:26px; flex:none; display:flex; align-items:center; justify-content:center;
+           background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+           border-radius:8px; font-size:13px; }
+  .g-count { margin-left:auto; font-weight:500; font-size:11px; color:var(--dim);
+             background:color-mix(in srgb, var(--dim) 12%, transparent);
+             padding:2px 9px; border-radius:999px; transition:all .3s ease; }
+  .g-count.on { color:var(--green); background:color-mix(in srgb, var(--green) 14%, transparent); }
+  .group-empty { color:var(--dim); font-size:12px; padding:0 8px 10px; }
+  .cfg-row { display:flex; align-items:center; gap:10px; padding:8px 4px; border-radius:8px;
+             border-top:1px solid color-mix(in srgb, var(--border) 55%, transparent);
+             transition:background-color .2s ease; }
+  .group-head + .cfg-row, .group-empty + .cfg-row { border-top:none; }
+  .cfg-row:hover { background:color-mix(in srgb, var(--accent) 6%, transparent); }
+  .cfg-ico { width:24px; flex:none; text-align:center; font-size:13px; opacity:.9;
+             transition:opacity .3s ease; }
+  .cfg-row .info { flex:1; min-width:0; transition:opacity .3s ease; }
+  .cfg-row .info b { font-size:13.5px; font-weight:600; }
+  .cfg-row .info .meta { color:var(--dim); font-size:12px; overflow:hidden;
+                         text-overflow:ellipsis; white-space:nowrap; }
+  .cfg-row.off .info, .cfg-row.off .cfg-ico { opacity:.42; }
+  .cfg-row .sw { margin-left:auto; }
+
+  /* 日志面板：主题化浮动卡片 + 任务标题 + 状态徽章 */
+  #logPanel { position:fixed; right:16px; bottom:16px; width:min(620px, calc(100% - 32px)); height:min(46vh, 480px);
+      background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+      display:flex; flex-direction:column; z-index:9; transform:translateY(calc(100% + 24px));
+      transition:transform .38s cubic-bezier(.22,1,.36,1), background-color .45s ease, border-color .45s ease;
+      box-shadow:var(--shadow); overflow:hidden; }
+  #logPanel.open { transform:translateY(0); }
+  [data-theme="tech"] #logPanel { box-shadow:0 0 0 1px rgba(255,158,44,.25), var(--shadow); }
+  #logHead { padding:10px 14px; border-bottom:1px solid var(--border); display:flex;
+             justify-content:space-between; align-items:center; gap:10px; }
+  #logHead .right { display:flex; align-items:center; gap:8px; }
+  #logTitle { font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #logStatus { font-size:11px; padding:2px 10px; border-radius:999px; font-weight:600;
+               transition:all .3s ease; white-space:nowrap; }
+  #logStatus.run { color:var(--orange); background:color-mix(in srgb, var(--orange) 13%, transparent); }
+  #logStatus.run::before { content:"●"; margin-right:5px; animation:caret 1.1s ease infinite; }
+  #logStatus.done { color:var(--green); background:color-mix(in srgb, var(--green) 13%, transparent); }
+  #logStatus.fail { color:var(--red); background:color-mix(in srgb, var(--red) 13%, transparent); }
+  #log { flex:1; overflow:auto; margin:8px; padding:10px 12px; border-radius:8px;
+         background:var(--log-bg); font:12px/1.6 ui-monospace,Menlo,monospace;
+         color:var(--log-fg); white-space:pre-wrap; transition:background-color .45s ease, color .45s ease; }
+  #log.running::after { content:"▋"; color:var(--accent); animation:caret 1s steps(2) infinite; }
+  @keyframes caret { 50% { opacity:0; } }
+
+  /* Toast：弹入 + 倒计时进度条 */
+  #toast { position:fixed; top:16px; left:50%; background:var(--panel);
+      border:1px solid var(--border); padding:9px 18px 11px; border-radius:10px; z-index:99;
+      box-shadow:var(--shadow); opacity:0; transform:translate(-50%,-16px) scale(.92); pointer-events:none;
+      transition:opacity .3s ease, transform .34s var(--spring); overflow:hidden; }
+  #toast.show { opacity:1; transform:translate(-50%,0) scale(1); }
+  #toast .bar { position:absolute; left:10px; right:10px; bottom:3px; height:2px; border-radius:2px;
+      background:var(--accent); transform-origin:left; animation:barShrink 3s linear forwards; }
+  @keyframes barShrink { from { transform:scaleX(1); } to { transform:scaleX(0); } }
+
+  /* ================= 动画关键帧 ================= */
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes rowIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
+
+  /* 主题切换时的一次性闪光过渡 */
+  body.theme-flash::after {
+    content:""; position:fixed; inset:0; z-index:999; pointer-events:none;
+    background:radial-gradient(circle at top right, color-mix(in srgb, var(--accent) 28%, transparent), transparent 55%);
+    animation:flash .6s ease forwards;
+  }
+  @keyframes flash { from { opacity:1; } to { opacity:0; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
+  }
 </style>
 </head>
 <body>
+<div class="fx"><i class="meteor m1"></i><i class="meteor m2"></i><i class="meteor m3"></i><i class="meteor m4"></i><i class="meteor m5"></i><i class="scanline"></i></div>
 <header>
-  <h1>⚙️ All Agent Config</h1>
+  <h1><span class="gear">⚙️</span> All Agent Config</h1>
   <span class="sub">AI Agent 装机与配置迁移中心 · M2（检测 / 安装 / 更新 / 配置导出导入）</span>
+  <div class="theme-switch" id="themeSwitch" title="切换主题">
+    <span class="indicator"></span>
+    <button data-t="light">☀️ 白天</button>
+    <button data-t="dark">🌙 黑夜</button>
+    <button data-t="tech">🛰️ 科技</button>
+  </div>
 </header>
 <main>
   <div class="toolbar">
     <label><input type="radio" name="scope" value="user" checked> 用户级安装（无需密码）</label>
     <label><input type="radio" name="scope" value="global"> 全局安装（系统级）</label>
-    <input type="password" id="sudo" placeholder="sudo 密码（全局安装需要）">
-    <button class="primary" onclick="loadTools()">🔄 重新扫描</button>
+    <button class="primary" id="scanBtn" onclick="loadTools()">🔄 重新扫描</button>
     <button onclick="updateAll()">⬆️ 一键更新全部</button>
     <button onclick="document.getElementById('importFile').click()">📦 导入 .aac 配置包</button>
     <input type="file" id="importFile" accept=".aac,.zip" style="display:none" onchange="doImport(this)">
+    <button onclick="openArchive()">🗜️ 压缩包安装</button>
+    <button onclick="openEnv()">🧰 环境</button>
     <button onclick="openSettings()">⚙️ 设置</button>
     <span id="summary" class="sub"></span>
+    <span id="envBadge" class="sub" style="cursor:pointer" onclick="openEnv()"></span>
+  </div>
+  <div class="filter-bar">
+    <div class="filter-tabs" id="filterTabs">
+      <button data-f="all" class="on">全部</button>
+      <button data-f="user">用户安装</button>
+      <button data-f="global">全局安装</button>
+    </div>
+    <span class="filter-hint">🔒 标记表示更新 / 卸载需要 sudo 密码</span>
   </div>
   <table>
     <thead><tr>
       <th>工具</th><th>状态</th><th>当前版本</th><th>最新版本</th><th>安装方式</th><th>操作</th><th>说明</th>
     </tr></thead>
-    <tbody id="rows"><tr><td colspan="7" style="text-align:center;color:var(--dim)">扫描中…</td></tr></tbody>
+    <tbody id="rows"></tbody>
   </table>
 </main>
+
+<!-- 配置详情模态框 -->
+<div class="modal-mask" id="configMask">
+  <div class="modal modal-lg">
+    <header><h2 id="configTitle">🧩 配置详情</h2><button onclick="closeModal('configMask')">✕</button></header>
+    <div class="body" id="configBody"></div>
+  </div>
+</div>
 
 <!-- 导出模态框 -->
 <div class="modal-mask" id="exportMask">
@@ -136,11 +463,90 @@
   </div>
 </div>
 
+<!-- sudo 密码弹窗 -->
+<div class="modal-mask" id="sudoMask">
+  <div class="modal" style="width:min(440px,94vw)">
+    <header><h2>🔐 需要管理员权限</h2><button onclick="closeModal('sudoMask')">✕</button></header>
+    <div class="body">
+      <div style="font-size:13px;color:var(--dim);margin-bottom:12px" id="sudoHint"></div>
+      <input type="password" id="sudoPwdInput" placeholder="输入开机密码（sudo）"
+             style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:9px 12px;font-size:14px">
+      <div style="font-size:12px;color:var(--dim);margin-top:10px">🔒 密码只保存在本次会话的内存里，不写磁盘、不上传；关闭页面即失效，也可在「设置」里随时清除。</div>
+    </div>
+    <footer>
+      <button onclick="closeModal('sudoMask')">取消</button>
+      <button class="primary" onclick="confirmSudo()">✅ 确定并继续</button>
+    </footer>
+  </div>
+</div>
+
+<!-- 操作二次确认弹窗 -->
+<div class="modal-mask" id="confirmMask">
+  <div class="modal" style="width:min(460px,94vw)">
+    <header><h2 id="confirmTitle">确认操作</h2><button onclick="closeModal('confirmMask')">✕</button></header>
+    <div class="body">
+      <div id="confirmBody" style="font-size:14px;line-height:1.7"></div>
+    </div>
+    <footer>
+      <button onclick="closeModal('confirmMask')">取消</button>
+      <button class="primary" id="confirmOkBtn" onclick="doConfirm()">✅ 确认执行</button>
+    </footer>
+  </div>
+</div>
+
+<!-- 环境检测弹窗 -->
+<div class="modal-mask" id="envMask">
+  <div class="modal" style="width:min(560px,94vw)">
+    <header><h2>🧰 运行环境</h2><button onclick="closeModal('envMask')">✕</button></header>
+    <div class="body">
+      <div style="font-size:12px;color:var(--dim);margin-bottom:12px">
+        安装 / 更新工具需要对应的安装管理器。缺少的可以一键自动安装，或按提示手动安装。
+      </div>
+      <div id="envBody"></div>
+    </div>
+    <footer><button onclick="closeModal('envMask')">关闭</button></footer>
+  </div>
+</div>
+
+<!-- 压缩包安装弹窗 -->
+<div class="modal-mask" id="archiveMask">
+  <div class="modal" style="width:min(480px,94vw)">
+    <header><h2>🗜️ 压缩包安装</h2><button onclick="closeModal('archiveMask')">✕</button></header>
+    <div class="body">
+      <div style="font-size:13px;color:var(--dim);margin-bottom:12px">
+        选择工具对应的安装压缩包（.zip / .tar.gz），程序会自动解压、识别里面的可执行文件并安装到
+        <code>~/.aac/apps/</code> 下（用户级，无需密码）。
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <select id="archiveAgent" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:9px 12px;font-size:14px"></select>
+        <button onclick="document.getElementById('archiveFile').click()">📁 选择压缩包…</button>
+        <input type="file" id="archiveFile" accept=".zip,.tar,.tar.gz,.tgz" style="display:none" onchange="doArchiveInstall(this)">
+        <div id="archiveHint" style="font-size:12px;color:var(--dim)"></div>
+      </div>
+    </div>
+    <footer><button onclick="closeModal('archiveMask')">关闭</button></footer>
+  </div>
+</div>
+
 <!-- 设置模态框 -->
 <div class="modal-mask" id="settingsMask">
   <div class="modal">
     <header><h2>⚙️ 设置</h2><button onclick="closeModal('settingsMask')">✕</button></header>
     <div class="body" id="settingsBody">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <b style="font-size:14px">🔐 sudo 密码</b>
+        <span id="sudoState" style="color:var(--dim);font-size:12px"></span>
+        <button onclick="clearSudo()">🧹 清除记住的密码</button>
+      </div>
+      <div style="font-size:14px;margin-bottom:6px"><b>🛡️ 操作二次确认</b>（关闭后点击按钮直接执行）</div>
+      <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:16px">
+        <span style="display:flex;align-items:center;gap:8px;font-size:13px">
+          <label class="sw"><input type="checkbox" id="cf_install" onchange="setConfirm('install',this.checked)"><i></i></label> 📥 安装时确认</span>
+        <span style="display:flex;align-items:center;gap:8px;font-size:13px">
+          <label class="sw"><input type="checkbox" id="cf_update" onchange="setConfirm('update',this.checked)"><i></i></label> ⬆️ 更新时确认</span>
+        <span style="display:flex;align-items:center;gap:8px;font-size:13px">
+          <label class="sw"><input type="checkbox" id="cf_uninstall" onchange="setConfirm('uninstall',this.checked)"><i></i></label> 🗑️ 卸载时确认</span>
+      </div>
       <div style="font-size:14px;margin-bottom:6px"><b>☁️ WebDAV 云同步</b>（坚果云 / Nextcloud / 群晖）</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <input type="text" id="wd_url" placeholder="https://dav.jianguoyun.com/dav/" style="grid-column:1/3">
@@ -169,70 +575,429 @@
 </div>
 
 <div id="logPanel">
-  <div id="logHead"><strong>任务日志</strong><button onclick="document.getElementById('logPanel').classList.remove('open')">关闭 ✕</button></div>
+  <div id="logHead"><strong id="logTitle">任务日志</strong>
+    <div class="right"><span id="logStatus"></span><button onclick="document.getElementById('logPanel').classList.remove('open')">关闭 ✕</button></div>
+  </div>
   <div id="log"></div>
 </div>
 <div id="toast"></div>
 
 <script>
+/* ---------------- 按钮点击涟漪（全局委托） ---------------- */
+document.addEventListener('click', e=>{
+  const b = e.target.closest('button');
+  if(!b || b.disabled) return;
+  const rect = b.getBoundingClientRect();
+  const d = Math.max(rect.width, rect.height);
+  const r = document.createElement('span');
+  r.className = 'ripple';
+  r.style.width = r.style.height = d + 'px';
+  r.style.left = (e.clientX - rect.left - d/2) + 'px';
+  r.style.top = (e.clientY - rect.top - d/2) + 'px';
+  b.appendChild(r);
+  setTimeout(()=>r.remove(), 600);
+});
+
+/* ---------------- 主题切换（滑动指示块） ---------------- */
+const themeSwitch = document.getElementById('themeSwitch');
+function moveIndicator(){
+  const on = themeSwitch.querySelector('button.on');
+  const ind = themeSwitch.querySelector('.indicator');
+  if(!on) return;
+  ind.style.left = on.offsetLeft + 'px';
+  ind.style.width = on.offsetWidth + 'px';
+}
+function applyTheme(name, flash){
+  document.documentElement.setAttribute('data-theme', name);
+  localStorage.setItem('aac-theme', name);
+  themeSwitch.querySelectorAll('button').forEach(b=>
+    b.classList.toggle('on', b.dataset.t===name));
+  moveIndicator();
+  if(flash){
+    document.body.classList.remove('theme-flash');
+    void document.body.offsetWidth; // 重新触发动画
+    document.body.classList.add('theme-flash');
+  }
+}
+themeSwitch.querySelectorAll('button').forEach(b=>
+  b.addEventListener('click', ()=>applyTheme(b.dataset.t, true)));
+window.addEventListener('resize', moveIndicator);
+const _urlTheme = new URLSearchParams(location.search).get('theme');
+applyTheme(['light','dark','tech'].includes(_urlTheme) ? _urlTheme
+  : (localStorage.getItem('aac-theme') || 'dark'), false);
+if(new URLSearchParams(location.search).has('noanim')){
+  const st = document.createElement('style');
+  st.textContent = '*{animation:none!important;transition:none!important}';
+  document.head.appendChild(st);
+}
+requestAnimationFrame(moveIndicator); // 字体加载后校正一次
+
 const LABELS = {system:'系统配置',hooks:'Hooks 钩子',skills:'Skills 技能',mcp:'MCP 服务器',
   theme:'主题 / 美化',custom:'自定义个人配置',patches:'程序级修改（补丁）',conversations:'对话历史'};
 const ORDER = ['system','hooks','skills','mcp','theme','custom','patches','conversations'];
 let TOOLS = [], EXPORT_STATE = null, IMPORT_STATE = null;
+let BUSY = {}, FAILED = {};   // agentId -> 进行中 / 失败的操作（install|update|uninstall）
 
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtSize(n){ if(!n) return '0 B'; const u=['B','KB','MB','GB']; let i=0;
   while(n>=1024 && i<u.length-1){ n/=1024; i++; } return n.toFixed(n>=10||i===0?0:1)+' '+u[i]; }
 function scope(){ return document.querySelector('input[name=scope]:checked').value; }
-function sudoPwd(){ return document.getElementById('sudo').value || null; }
-function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg;
-  t.style.display='block'; setTimeout(()=>t.style.display='none',3000); }
+
+/* ---------------- sudo 密码：弹窗输入 + 会话内记忆 ---------------- */
+let SUDO_PWD = null, SUDO_PENDING = null;
+
+/* ---------------- 操作二次确认（可单独开关，存 localStorage） ---------------- */
+const CONFIRM = Object.assign({install:true, update:true, uninstall:true},
+  JSON.parse(localStorage.getItem('aac.confirm') || '{}'));
+function setConfirm(k, v){ CONFIRM[k] = v; localStorage.setItem('aac.confirm', JSON.stringify(CONFIRM)); }
+let CONFIRM_PENDING = null;
+const CONFIRM_META = {
+  install:   {name:'安装',   icon:'📥', cls:'primary', btn:'✅ 确认安装'},
+  update:    {name:'更新',   icon:'⬆️', cls:'upd',     btn:'✅ 确认更新'},
+  uninstall: {name:'卸载',   icon:'🗑️', cls:'danger',  btn:'✅ 确认卸载'},
+};
+function askConfirm(action, fn, toolName, extra){
+  const m = CONFIRM_META[action];
+  document.getElementById('confirmTitle').textContent = `${m.icon} 确认${m.name}`;
+  document.getElementById('confirmBody').innerHTML =
+    `确定要${m.name} <b>${toolName||''}</b> 吗？` +
+    (action==='uninstall'
+      ? '<div style="color:var(--orange);font-size:13px;margin-top:8px">⚠️ 卸载会删除程序文件（配置与会话默认保留），此操作不可撤销。</div>'
+      : '') + (extra||'');
+  const okBtn = document.getElementById('confirmOkBtn');
+  okBtn.textContent = m.btn;
+  okBtn.className = m.cls;
+  CONFIRM_PENDING = fn;
+  document.getElementById('confirmMask').classList.add('open');
+}
+function doConfirm(){
+  closeModal('confirmMask');
+  const fn = CONFIRM_PENDING; CONFIRM_PENDING = null;
+  if(fn) fn();
+}
+function sudoPwd(){ return SUDO_PWD; }
+function openSudo(action, id, prefix){
+  SUDO_PENDING = {action, id, prefix};
+  const agent = id ? TOOLS.find(t=>t.id===id) : null;
+  document.getElementById('sudoHint').textContent =
+    `${ACTION_LABELS[action]||action}${agent?` ${agent.name}`:''} 需要管理员权限` +
+    `${prefix?`（安装位置 ${prefix}）`:(agent?.install_prefix?`（安装在 ${agent.install_prefix}）`:'')}。`;
+  document.getElementById('sudoPwdInput').value = '';
+  document.getElementById('sudoMask').classList.add('open');
+  setTimeout(()=>document.getElementById('sudoPwdInput').focus(), 200);
+}
+async function confirmSudo(){
+  const v = document.getElementById('sudoPwdInput').value;
+  if(!v){ toast('请输入密码'); return; }
+  SUDO_PWD = v;
+  closeModal('sudoMask');
+  const p = SUDO_PENDING; SUDO_PENDING = null;
+  if(!p) return;
+  if(p.action === '__checkUpdate') await checkUpdateRun(p.id);
+  else await act(p.action, p.id, p.prefix);
+}
+function clearSudo(){
+  SUDO_PWD = null;
+  document.getElementById('sudoState').textContent = '未记住密码';
+  toast('🧹 已清除记住的 sudo 密码');
+}
+document.getElementById('sudoPwdInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter') confirmSudo();
+});
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.innerHTML = msg + '<span class="bar"></span>';
+  t.classList.add('show'); clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.classList.remove('show'),3000);
+}
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
-async function loadTools(){
-  document.getElementById('rows').innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--dim)">扫描中…</td></tr>';
-  TOOLS = await (await fetch('/api/tools')).json();
-  const installed = TOOLS.filter(t=>t.installed).length;
-  const updatable = TOOLS.filter(t=>t.updatable).length;
-  document.getElementById('summary').textContent=`已安装 ${installed} / ${TOOLS.length} 个工具${updatable?`，${updatable} 个可更新`:''}`;
-  document.getElementById('rows').innerHTML = TOOLS.map(t=>{
+function skeletonRows(){
+  return Array.from({length:5},(_,i)=>
+    `<tr class="skel-row" style="animation-delay:${i*60}ms"><td colspan="7">
+       <div class="skel" style="width:${88-i*9}%"></div></td></tr>`).join('');
+}
+
+let FILTER = 'all';
+document.querySelectorAll('#filterTabs button').forEach(b=>
+  b.addEventListener('click', ()=>{
+    FILTER = b.dataset.f;
+    document.querySelectorAll('#filterTabs button').forEach(x=>x.classList.toggle('on', x===b));
+    renderTools();
+  }));
+
+/* 把工具展开成行：一处安装一行。主安装（PATH 生效的）行的 _rowId 保持为工具 id */
+function expandRows(list){
+  const rows = [];
+  for(const t of list){
+    const installs = t.installs || [];
+    if(t.installed && installs.length > 1){
+      installs.forEach((ins, idx)=>{
+        rows.push({...t, _install: ins, _primary: idx===0,
+                   _rowId: idx===0 ? t.id : `${t.id}@${ins.prefix}`});
+      });
+    } else {
+      rows.push({...t, _install: installs[0] || null, _primary: true, _rowId: t.id});
+    }
+  }
+  return rows;
+}
+
+function methodCellRow(t){
+  if(!t.installed) return '—';
+  const ins = t._install;
+  const m = t.method==='npm-global' ? 'npm 全局'
+    : (t.install_prefix||'').includes('/.aac/apps/') ? '压缩包安装'
+    : t.method==='other' ? '其他方式' : '—';
+  if(!ins) return m;
+  const scopeBadge = ins.scope==='user'
+    ? '<span class="badge b-scope-user">👤 用户安装</span>'
+    : `<span class="badge b-scope-global">🌐 全局安装${ins.needs_sudo?' 🔒':''}</span>`;
+  const useBadge = t.install_count>1
+    ? (ins.primary
+        ? '<span class="badge b-ok" style="margin-left:4px">✅ 使用中</span>'
+        : '<span class="badge b-na" style="margin-left:4px">💤 未使用</span>')
+    : '';
+  const dup = t.install_count>1 && !ins.primary
+    ? '<div style="color:var(--orange);font-size:11px;margin-top:3px">⚠️ 重复安装的副本，可安全卸载</div>' : '';
+  return `${m}<br><span style="display:inline-block;margin-top:5px">${scopeBadge}${useBadge}</span><span class="scope-path">${esc(ins.prefix)}</span>${dup}`;
+}
+
+function renderTools(){
+  const rows = expandRows(sortedTools()).filter(t=>{
+    if(FILTER==='all') return true;
+    if(!t.installed) return false;
+    return t._install && t._install.scope===FILTER;
+  });
+  if(!rows.length){
+    document.getElementById('rows').innerHTML =
+      '<tr><td colspan="7" style="text-align:center;color:var(--dim);padding:34px">该分类下暂无工具</td></tr>';
+    return;
+  }
+  document.getElementById('rows').innerHTML = rows.map((t,i)=>{
     const updatable = !!t.updatable;
     const badge = !t.installed ? '<span class="badge b-no">未安装</span>'
-      : updatable ? '<span class="badge b-up">可更新</span>'
+      : updatable && t._primary ? '<span class="badge b-up">可更新</span>'
       : '<span class="badge b-ok">已安装</span>';
-    const method = !t.installed ? '—' : t.method==='npm-global' ? 'npm 全局' : t.method==='other' ? '其他方式' : '—';
+    const rowId = t._rowId;
     const acts = [];
-    if(t.auto_install){
-      if(!t.installed) acts.push(`<button onclick="act('install','${t.id}')">安装</button>`);
-      if(updatable) acts.push(`<button onclick="checkUpdate('${t.id}')">更新</button>`);
-      if(t.installed) acts.push(`<button class="danger" onclick="act('uninstall','${t.id}')">卸载</button>`);
-    } else {
-      acts.push('<span class="badge b-na">手动安装</span>');
+    const busyAction = BUSY[rowId];
+    const failedAction = FAILED[rowId];
+    const busyLabel = {install:'安装中', update:'更新中', uninstall:'卸载中'}[busyAction];
+    if(busyAction){
+      acts.push(`<button class="loading" disabled>${busyLabel}</button>`);
+    } else if(t.auto_install){
+      const fromArchive = (t.install_prefix||'').includes('/.aac/apps/');
+      if(!t.installed){
+        acts.push(failedAction==='install'
+          ? `<button class="retry" onclick="act('install','${t.id}')">🔁 重试安装</button>`
+          : `<button onclick="act('install','${t.id}')">安装</button>`);
+      } else if(t._primary){
+        if(updatable && !fromArchive){
+          acts.push(failedAction==='update'
+            ? `<button class="retry" onclick="checkUpdate('${t.id}')">🔁 重试更新</button>`
+            : `<button class="upd" onclick="checkUpdate('${t.id}')">更新</button>`);
+        }
+        acts.push(failedAction==='uninstall'
+          ? `<button class="retry" onclick="act('uninstall','${t.id}','${t._install.prefix}')">🔁 重试卸载</button>`
+          : `<button class="danger" onclick="act('uninstall','${t.id}','${t._install.prefix}')">卸载</button>`);
+      } else {
+        // 重复安装的未使用副本：只提供卸载
+        acts.push(failedAction==='uninstall'
+          ? `<button class="retry" onclick="act('uninstall','${t.id}','${t._install.prefix}')">🔁 重试卸载</button>`
+          : `<button class="danger" onclick="act('uninstall','${t.id}','${t._install.prefix}')">🗑 卸载此副本</button>`);
+      }
+    } else if(t.installed && t._primary && t.managed){
+      // 独立二进制工具（如 Kimi Code）：内置自动更新，这里只提供受管卸载
+      acts.push(failedAction==='uninstall'
+        ? `<button class="retry" onclick="act('uninstall','${t.id}','${t._install.prefix}')">🔁 重试卸载</button>`
+        : `<button class="danger" onclick="act('uninstall','${t.id}','${t._install.prefix}')">卸载</button>`);
+    } else if(!t.installed) {
+      acts.push(t.homepage
+        ? `<button onclick="window.open('${t.homepage}','_blank')">🌐 访问官网</button>`
+        : '<span class="badge b-na">手动安装</span>');
     }
-    if(t.installed) acts.push(`<button onclick="openExport('${t.id}')">📦 导出配置</button>`);
-    return `<tr>
-      <td><strong>${t.name}</strong><div class="sub" style="color:var(--dim);font-size:12px">${t.vendor}</div></td>
+    if(t.installed && t._primary){
+      acts.push(`<button onclick="openConfig('${t.id}')">🧩 配置详情</button>`);
+      acts.push(`<button onclick="openExport('${t.id}')">📦 导出配置</button>`);
+    }
+    return `<tr style="animation-delay:${Math.min(i*45, 500)}ms"${t._primary?'':' class="dup-row"'}>
+      <td><strong${t._primary?'':' style="opacity:.6"'}>${t._primary?'':'├─ '}${t.name}</strong><div class="sub" style="color:var(--dim);font-size:12px">${t.vendor}</div></td>
       <td>${badge}</td>
       <td class="ver">${t.current_version||'—'}</td>
       <td class="ver">${t.latest_version||'—'}</td>
-      <td>${method}</td>
+      <td>${methodCellRow(t)}</td>
       <td><div class="acts">${acts.join('')}</div></td>
       <td class="notes">${t.notes||''}${!t.auto_install&&t.install_hint?'<br>💡 '+t.install_hint:''}</td>
     </tr>`;
   }).join('');
 }
 
-async function act(action,id){
-  const body=JSON.stringify({scope:scope(),sudo_password:sudoPwd()});
+async function loadTools(){
+  const scanBtn = document.getElementById('scanBtn');
+  scanBtn.classList.add('loading');
+  document.getElementById('rows').innerHTML = skeletonRows();
+  try {
+    TOOLS = await (await fetch('/api/tools')).json();
+  } finally {
+    scanBtn.classList.remove('loading');
+  }
+  const installed = TOOLS.filter(t=>t.installed).length;
+  const updatable = TOOLS.filter(t=>t.updatable).length;
+  const summary = document.getElementById('summary');
+  summary.textContent=`已安装 ${installed} / ${TOOLS.length} 个工具${updatable?`，${updatable} 个可更新`:''}`;
+  summary.classList.remove('pop'); void summary.offsetWidth; summary.classList.add('pop');
+  // 筛选标签计数（按安装位置行数统计）
+  const allRows = expandRows(TOOLS);
+  const userN = allRows.filter(t=>t.installed&&t._install?.scope==='user').length;
+  const globalN = allRows.filter(t=>t.installed&&t._install?.scope==='global').length;
+  document.querySelector('#filterTabs [data-f="all"]').innerHTML = `全部 <span class="cnt">${TOOLS.length}</span>`;
+  document.querySelector('#filterTabs [data-f="user"]').innerHTML = `用户安装 <span class="cnt">${userN}</span>`;
+  document.querySelector('#filterTabs [data-f="global"]').innerHTML = `全局安装 <span class="cnt">${globalN}</span>`;
+  renderTools();
+}
+
+/* 排序五级：可更新 > 已安装 > 可自动安装(未装) > 只能手动安装(未装)，同级按注册表顺序 */
+function toolRank(t){
+  if(t.installed && t.updatable) return 0;
+  if(t.installed) return 1;
+  if(t.auto_install) return 2;
+  return 3;
+}
+function sortedTools(){
+  return [...TOOLS].sort((a,b)=> toolRank(a)-toolRank(b));
+}
+
+async function act(action, id, prefix, skipConfirm){
+  const agent = id ? TOOLS.find(t=>t.id===id) : null;
+  if(!skipConfirm && CONFIRM[action] && CONFIRM_META[action]){
+    askConfirm(action, ()=>act(action, id, prefix, true), agent?.name);
+    return;
+  }
+  const installs = agent?.installs || [];
+  const primaryPrefix = installs[0]?.prefix;
+  const ins = prefix ? installs.find(i=>i.prefix===prefix) : installs[0];
+  const rowId = (prefix && prefix !== primaryPrefix) ? `${id}@${prefix}` : id;
+  const needSudo = ins ? ins.needs_sudo : agent?.needs_sudo;
+  if(needSudo && !SUDO_PWD){ openSudo(action, id, prefix); return; }
+  const body=JSON.stringify({scope:scope(), sudo_password:sudoPwd(), prefix: prefix||null});
   const url=id?`/api/${action}/${id}`:`/api/${action}`;
   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body});
-  if(r.status===400){ toast((await r.json()).detail||'需要 sudo 密码'); return; }
+  if(r.status===400){
+    const d = await r.json();
+    if(/sudo|密码/.test(d.detail||'')){ openSudo(action, id, prefix); return; }
+    if((d.detail||'').startsWith('ENV_MISSING:')){
+      const mgr = d.detail.split(':')[1];
+      toast(`⚠️ 缺少环境：${mgr}，请先安装`);
+      openEnv(mgr);
+      return;
+    }
+    toast('⚠️ '+(d.detail||'操作被拒绝'));
+    loadTools();   // 状态可能已过期（如副本已被移除），重新扫描同步
+    return;
+  }
   const {task_id}=await r.json();
-  openLog(task_id);
+  const title = (ACTION_LABELS[action]||action) + (agent?` —— ${agent.name}`:'') + (prefix&&prefix!==primaryPrefix?`（${prefix}）`:'');
+  if(id){
+    BUSY[rowId] = action==='safe-update' ? 'update' : action;
+    delete FAILED[rowId];
+    renderTools();
+  }
+  openLog(task_id, title, rowId, action);
 }
 
 async function updateAll(){
-  for(const t of TOOLS.filter(t=>t.installed&&t.auto_install)) await act('update',t.id);
-  toast('已提交全部更新任务');
+  // 只更新「可更新」的（当前版本 < 最新版本），已是最新的不碰
+  const targets = TOOLS.filter(t=>t.installed && t.updatable && t.auto_install
+    && !(t.install_prefix||'').includes('/.aac/apps/'));
+  if(!targets.length){ toast('🎉 全部已是最新，没有需要更新的工具'); return; }
+  const run = async ()=>{
+    const skipped = [];
+    for(const t of targets){
+      // 与单个「更新」一致：先查程序修改，有补丁的工具不批量动，留给用户单独处理
+      const d = await (await fetch(`/api/agents/${t.id}/detail`)).json();
+      const mods = (d.patches?.modified||[]).length + (d.patches?.added||[]).length;
+      if(mods){ skipped.push(t.name); continue; }
+      await act('update', t.id, null, true);
+    }
+    toast(skipped.length
+      ? `已提交更新；${skipped.join('、')} 检测到程序修改，请单独点「更新」走补丁保护`
+      : '已提交全部更新任务');
+  };
+  if(CONFIRM.update){
+    askConfirm('update', run, targets.map(t=>t.name).join('、'),
+      `<div style="font-size:13px;color:var(--dim);margin-top:8px">共 ${targets.length} 个工具可更新，已是最新的不会被动。</div>`);
+    return;
+  }
+  await run();
+}
+
+/* ---------------- 配置详情（开关面板） ---------------- */
+async function openConfig(id){
+  const agent = TOOLS.find(t=>t.id===id);
+  document.getElementById('configTitle').textContent = `🧩 配置详情 —— ${agent.name}`;
+  const body = document.getElementById('configBody');
+  body.innerHTML = Array.from({length:6},(_,i)=>
+    `<div class="skel" style="height:14px;margin:14px 4px;width:${85-i*8}%"></div>`).join('');
+  document.getElementById('configMask').classList.add('open');
+  const d = await (await fetch(`/api/agents/${id}/config`)).json();
+  renderConfig(d);
+}
+
+const G_ICONS = {skills:'🧩', ext:'🧰', mcp:'🔌', hooks:'🪝', files:'📄'};
+function itemIcon(gkey, it){
+  if(gkey==='mcp') return '🔌';
+  if(gkey==='hooks') return '🪝';
+  return (it.meta||'').startsWith('目录') ? '📁' : '📄';
+}
+function renderConfig(d){
+  const body = document.getElementById('configBody');
+  const total = d.groups.reduce((a,g)=>a+g.items.length,0);
+  const onTotal = d.groups.reduce((a,g)=>a+g.items.filter(i=>i.enabled).length,0);
+  let html = `<div class="cfg-summary">共 ${total} 个配置项，<b>${onTotal} 个开启</b>，${total-onTotal} 个关闭</div>`;
+  d.groups.forEach((g,gi)=>{
+    const onCount = g.items.filter(i=>i.enabled).length;
+    html += `<div class="group" style="animation-delay:${gi*70}ms">
+      <div class="group-head" onclick="this.parentElement.classList.toggle('collapsed')">
+        <span class="g-ico">${G_ICONS[g.key]||'🧩'}</span>${esc(g.label)}
+        <span class="g-count ${onCount?'on':''}">${onCount} / ${g.items.length}</span>
+        <span class="g-caret">▼</span></div>
+      <div class="group-body"><div class="group-wrap">`;
+    if(!g.items.length){
+      html += `<div class="group-empty">该工具没有此类配置</div>`;
+    }
+    for(const it of g.items){
+      html += `<div class="cfg-row ${it.enabled?'':'off'}">
+        <span class="cfg-ico">${itemIcon(g.key,it)}</span>
+        <div class="info"><b>${esc(it.name)}</b>
+          ${it.desc?`<div class="meta">${esc(it.desc)}</div>`:''}
+          ${it.meta?`<div class="meta">${esc(it.meta)}</div>`:''}
+        </div>
+        <label class="sw"><input type="checkbox" ${it.enabled?'checked':''} ${it.toggleable?'':'disabled'}
+          onclick="event.stopPropagation()"
+          onchange="toggleCfg('${d.agent.id}','${encodeURIComponent(it.id)}',this.checked,this)"><i></i></label>
+      </div>`;
+    }
+    html += '</div></div></div>';
+  });
+  body.innerHTML = html || '<div style="color:var(--dim)">没有检测到任何配置项</div>';
+}
+
+async function toggleCfg(agentId, encId, enabled, input){
+  const id = decodeURIComponent(encId);
+  let d = {};
+  try {
+    const r = await fetch(`/api/agents/${agentId}/toggle`, {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({item_id:id, enabled})});
+    d = await r.json();
+    if(r.status!==200){ throw new Error(d.detail || '切换失败'); }
+  } catch(e) {
+    input.checked = !enabled;   // 失败回弹
+    toast('❌ ' + (e.message || '切换失败'));
+    return;
+  }
+  input.closest('.cfg-row').classList.toggle('off', !enabled);
+  toast((enabled?'✅ ':'⏸️ ') + (d.msg || '已切换'));
 }
 
 /* ---------------- 导出 ---------------- */
@@ -256,6 +1021,14 @@ async function openExport(id){
       if(p.added?.length) lines.push('➕ 新增的文件（'+p.added.length+'）：\n'+p.added.slice(0,50).join('\n'));
       filesHtml=lines.join('\n\n');
       extra=`基于官方版本 ${p.pkg_version} 对比`;
+    } else if(cat==='conversations'){
+      const c=d.categories[cat];
+      count=c.files.length; size=c.size;
+      // 时间范围筛选：默认全部，可改近 7/30/90 天；选择后实时显示将打包的数量
+      extra = `范围：<select id="convDays" onchange="updateConvCount()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--fg);padding:2px 6px;font-size:12px">
+        <option value="0">全部</option><option value="7">近 7 天</option>
+        <option value="30" selected>近 30 天</option><option value="90">近 90 天</option></select>
+        <span id="convCount"></span>`;
     } else {
       const c=d.categories[cat];
       count=c.files.length; size=c.size;
@@ -266,6 +1039,23 @@ async function openExport(id){
     rows.push(catRow(cat,count,size,filesHtml,false,extra,defOff));
   }
   document.getElementById('exportBody').innerHTML=rows.join('');
+  updateConvCount();
+}
+
+/* 对话历史时间范围：返回 (days, 过滤后的 {count,size}) */
+function convFilter(){
+  const days = parseInt(document.getElementById('convDays')?.value||'0');
+  const files = EXPORT_STATE?.detail?.categories?.conversations?.files || [];
+  if(!days) return {days:0, count:files.length, size:files.reduce((s,f)=>s+f.size,0)};
+  const cutoff = Date.now()/1000 - days*86400;
+  const hit = files.filter(f=>(f.mtime||0) >= cutoff);
+  return {days, count:hit.length, size:hit.reduce((s,f)=>s+f.size,0)};
+}
+function updateConvCount(){
+  const el = document.getElementById('convCount');
+  if(!el) return;
+  const {days, count, size} = convFilter();
+  el.textContent = days ? `→ 将打包 ${count} 个文件 · ${fmtSize(size)}` : '';
 }
 
 function catRow(cat,count,size,filesHtml,disabled,extra,defOff){
@@ -285,8 +1075,12 @@ function toggleCat(cat,on){ on?EXPORT_STATE.selected.add(cat):EXPORT_STATE.selec
 async function confirmExport(){
   const {agentId,selected}=EXPORT_STATE;
   if(!selected.size){ toast('请至少勾选一个分类'); return; }
+  const convDays = selected.has('conversations') ? (convFilter().days||null) : null;
+  if(selected.has('conversations') && convFilter().count===0){
+    toast('所选时间范围内没有会话文件'); return;
+  }
   const r=await fetch(`/api/export/${agentId}`,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({categories:[...selected]})});
+    body:JSON.stringify({categories:[...selected], conv_days:convDays})});
   const {file,size}=await r.json();
   closeModal('exportMask');
   toast(`已导出：${file}（${fmtSize(size)}）`);
@@ -304,15 +1098,21 @@ async function doImport(input){
   const m=data.manifest;
   document.getElementById('importTitle').textContent=`✅ 导入配置 —— ${m.agent_name}（${m.created} 导出）`;
   let html=(data.warnings||[]).map(w=>`<div class="warn">⚠️ ${w}</div>`).join('');
-  html+=`<div style="color:var(--dim);font-size:12px;margin-bottom:8px">按分类独立应用，互不影响。原始文件会先备份为 .bak-aac-* 再覆盖。</div>`;
+  html+=`<div style="color:var(--dim);font-size:12px;margin-bottom:8px">按分类独立应用，互不影响。被覆盖的本机文件会先备份为 .bak-aac-*。</div>`;
+  const conflicts = data.conflicts||{};
   for(const cat of ORDER){
     const info=m.categories[cat]; if(!info) continue;
-    const count = cat==='patches' ? info.entries.length : info.entries.length;
+    const count = info.entries.length;
+    const cf = conflicts[cat] || {overwrite:0,new:count,skip:0};
+    const parts = [];
+    if(cf.overwrite) parts.push(`<span style="color:var(--orange)">⚠️ 覆盖 ${cf.overwrite}</span>`);
+    if(cf.new) parts.push(`<span style="color:var(--green)">✚ 新增 ${cf.new}</span>`);
+    if(cf.skip) parts.push(`<span style="color:var(--dim)">⤼ 跳过 ${cf.skip}</span>`);
     IMPORT_STATE.selected.add(cat);
     html+=`<div class="cat-row">
       <label class="sw"><input type="checkbox" checked onchange="toggleImportCat('${cat}',this.checked)"><i></i></label>
       <div class="info"><b>${LABELS[cat]}</b>
-        <div class="meta">${count} 个文件${cat==='patches'&&info.pkg_version?' · 补丁基于 '+info.pkg_version:''}</div>
+        <div class="meta">${count} 个文件${cat==='patches'&&info.pkg_version?' · 补丁基于 '+info.pkg_version:''}${parts.length?' · '+parts.join(' · '):''}</div>
       </div></div>`;
   }
   document.getElementById('importBody').innerHTML=html||'<div style="color:var(--dim)">包内没有可导入的分类</div>';
@@ -328,7 +1128,7 @@ async function confirmImport(){
   const r=await fetch('/api/import/apply',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({filename,categories:[...selected]})});
   const {task_id}=await r.json();
-  openLog(task_id);
+  openLog(task_id, ACTION_LABELS['import-apply']);
 }
 
 /* ---------------- 带补丁保护的更新 ---------------- */
@@ -336,10 +1136,24 @@ let UPDATE_TARGET = null;
 
 async function checkUpdate(id){
   const agent = TOOLS.find(t=>t.id===id);
+  if(CONFIRM.update){
+    askConfirm('update', ()=>checkUpdateRun(id), agent?.name);
+    return;
+  }
+  await checkUpdateRun(id);
+}
+async function checkUpdateRun(id){
+  const agent = TOOLS.find(t=>t.id===id);
+  if(agent?.needs_sudo && !SUDO_PWD){
+    SUDO_PENDING = {action:'__checkUpdate', id};
+    openSudo('update', id);
+    return;
+  }
+  toast('🔍 正在检测程序修改…');
   const d = await (await fetch(`/api/agents/${id}/detail`)).json();
   const p = d.patches || {};
   const mods = [...(p.modified||[]), ...(p.added||[])];
-  if(!mods.length){ act('update', id); return; }
+  if(!mods.length){ act('update', id, null, true); return; }
   UPDATE_TARGET = id;
   document.getElementById('updateTitle').textContent = `⚠️ 更新 ${agent.name} 将覆盖 ${mods.length} 个程序修改`;
   document.getElementById('updateBody').innerHTML = `
@@ -352,8 +1166,8 @@ async function checkUpdate(id){
       「直接更新」：放弃这些修改。</div>`;
   document.getElementById('updateMask').classList.add('open');
 }
-function updateSafe(){ closeModal('updateMask'); act('safe-update', UPDATE_TARGET); }
-function updateDirect(){ closeModal('updateMask'); act('update', UPDATE_TARGET); }
+function updateSafe(){ closeModal('updateMask'); act('safe-update', UPDATE_TARGET, null, true); }
+function updateDirect(){ closeModal('updateMask'); act('update', UPDATE_TARGET, null, true); }
 
 /* ---------------- 设置 / 云同步 / 自动备份 ---------------- */
 async function openSettings(){
@@ -371,6 +1185,10 @@ async function openSettings(){
        <input type="checkbox" class="ab-agent" value="${t.id}" ${sel.has(t.id)?'checked':''}> ${t.name}</label>`).join('')
     || '<span style="color:var(--dim);font-size:12px">本机暂无已安装工具</span>';
   document.getElementById('settingsMsg').textContent = '';
+  document.getElementById('sudoState').textContent = SUDO_PWD ? '已记住（仅本次会话）' : '未记住密码';
+  document.getElementById('cf_install').checked = !!CONFIRM.install;
+  document.getElementById('cf_update').checked = !!CONFIRM.update;
+  document.getElementById('cf_uninstall').checked = !!CONFIRM.uninstall;
   document.getElementById('settingsMask').classList.add('open');
 }
 function settingsPayload(){
@@ -402,24 +1220,123 @@ async function testCloud(){
 async function cloudSync(push){
   await saveSettings();
   const r = await (await fetch(push?'/api/cloud/push':'/api/cloud/pull',{method:'POST'})).json();
-  openLog(r.task_id);
+  openLog(r.task_id, ACTION_LABELS[push?'cloud-push':'cloud-pull']);
 }
 
-function openLog(taskId){
+const ACTION_LABELS = {install:'📥 安装', update:'⬆️ 更新', uninstall:'🗑️ 卸载',
+  'safe-update':'💾 备份补丁并更新', 'backup-now':'📤 立即备份一轮',
+  'import-apply':'✅ 导入配置', 'cloud-push':'⬆️ 推送到云端', 'cloud-pull':'⬇️ 从云端拉取'};
+
+function openLog(taskId, title, agentId, action){
   const panel=document.getElementById('logPanel'), logEl=document.getElementById('log');
-  panel.classList.add('open'); logEl.textContent='';
+  const statusEl=document.getElementById('logStatus');
+  document.getElementById('logTitle').textContent = title || '任务日志';
+  panel.classList.add('open'); logEl.textContent=''; logEl.classList.add('running');
+  statusEl.className='run'; statusEl.textContent='运行中';
   const timer=setInterval(async()=>{
     const t=await (await fetch(`/api/tasks/${taskId}`)).json();
-    logEl.textContent=t.log; logEl.scrollTop=logEl.scrollHeight;
+    logEl.innerHTML = t.log.split('\n').map(l=>{
+      const e = l.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      return /^npm warn/i.test(l) ? `<span style="opacity:.4">${e}</span>` : e;   // 警告行淡化，不吓人
+    }).join('\n');
+    logEl.scrollTop=logEl.scrollHeight;
     if(t.status!=='running'){
       clearInterval(timer);
-      toast(t.status==='done'?'任务完成 ✅':'任务失败 ❌（见日志）');
+      logEl.classList.remove('running');
+      const ok = t.status==='done';
+      statusEl.className = ok?'done':'fail';
+      statusEl.textContent = ok?'✅ 完成':'❌ 失败';
+      if(agentId){
+        delete BUSY[agentId];
+        if(ok) delete FAILED[agentId];
+        else FAILED[agentId] = action==='safe-update' ? 'update' : action;
+      }
+      toast(ok?'任务完成 ✅':'任务失败 ❌（可点黄色「重试」按钮再来一次）');
       loadTools();
     }
   },800);
 }
 
+/* ---------------- 运行环境检测 / 一键装环境 ---------------- */
+let ENV = null;
+async function loadEnv(){
+  try{
+    ENV = await (await fetch('/api/env')).json();
+    const ok = [], miss = [];
+    for(const [k,v] of Object.entries(ENV)) (v.installed?ok:miss).push(v.label||k);
+    document.getElementById('envBadge').textContent =
+      `🧰 ${ok.slice(0,3).join('·')}${ok.length>3?'…':''} ✓` + (miss.length?` ｜ 缺 ${miss.join('·')}`:'');
+  }catch(e){ /* 环境接口失败不阻塞主流程 */ }
+}
+async function openEnv(focus){
+  if(!ENV) await loadEnv();
+  document.getElementById('envBody').innerHTML = Object.entries(ENV).map(([k,v])=>{
+    const hl = focus===k ? 'border:1px solid var(--orange);border-radius:8px;' : '';
+    const state = v.installed
+      ? `<span class="badge b-ok">✓ ${v.version||'已安装'}</span>`
+      : '<span class="badge b-no">未安装</span>';
+    const action = v.installed ? ''
+      : (v.auto_install
+        ? `<button class="primary" onclick="envInstall('${k}')">⬇️ 一键安装</button>`
+        : `<span style="font-size:12px;color:var(--dim)">需手动安装</span>`);
+    const hint = !v.installed && v.manual_hint
+      ? `<div style="font-size:12px;color:var(--dim);margin:0 4px 8px">💡 ${v.manual_hint}</div>` : '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid var(--border);${hl}">
+      <b style="width:90px;font-size:13px">${v.label||k}</b>${state}
+      <span style="margin-left:auto">${action}</span></div>${hint}`;
+  }).join('');
+  document.getElementById('envMask').classList.add('open');
+}
+async function envInstall(name){
+  const r = await fetch(`/api/env/install/${name}`, {method:'POST'});
+  if(r.status===400){
+    const d = await r.json();
+    toast('⚠️ '+(d.detail||'无法自动安装'));
+    if(ENV[name]) ENV[name].manual_hint = d.detail;
+    openEnv(name);
+    return;
+  }
+  const {task_id} = await r.json();
+  closeModal('envMask');
+  openLog(task_id, `🧰 安装环境 —— ${ENV[name]?.label||name}`);
+  const timer = setInterval(async()=>{
+    const t = await (await fetch(`/api/tasks/${task_id}`)).json();
+    if(t.status!=='running'){ clearInterval(timer); ENV=null; loadEnv(); loadTools(); }
+  }, 1000);
+}
+
+/* ---------------- 压缩包识别安装 ---------------- */
+function openArchive(){
+  document.getElementById('archiveAgent').innerHTML = TOOLS.map(t=>
+    `<option value="${t.id}">${t.name}${t.installed?'（已安装，将覆盖重装）':''}</option>`).join('');
+  document.getElementById('archiveHint').textContent = '';
+  document.getElementById('archiveMask').classList.add('open');
+}
+async function doArchiveInstall(input){
+  const f = input.files[0];
+  input.value = '';
+  if(!f) return;
+  const agentId = document.getElementById('archiveAgent').value;
+  const agent = TOOLS.find(t=>t.id===agentId);
+  const fd = new FormData();
+  fd.append('file', f);
+  closeModal('archiveMask');
+  const r = await fetch(`/api/install-archive/${agentId}`, {method:'POST', body:fd});
+  if(r.status===400){ const d=await r.json(); toast('⚠️ '+(d.detail||'安装被拒绝')); return; }
+  const {task_id} = await r.json();
+  openLog(task_id, `🗜️ 压缩包安装 —— ${agent?agent.name:agentId}`);
+}
+
 loadTools();
+loadEnv();
+
+/* 支持 #config-<agentId> 直接打开某个工具的配置详情 */
+if(location.hash.startsWith('#config-')){
+  const _cid = location.hash.slice(8);
+  const _timer = setInterval(()=>{
+    if(TOOLS.find(t=>t.id===_cid && t.installed)){ clearInterval(_timer); openConfig(_cid); }
+  }, 300);
+}
 </script>
 </body>
 </html>

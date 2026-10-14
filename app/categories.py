@@ -93,13 +93,13 @@ def scan_categories(agent: dict) -> dict:
                     files.append({"path": str(f), "size": sz})
                     size += sz
         result[cat] = {"files": files, "size": size}
-    # 对话历史
+    # 对话历史（带修改时间，导出时可按时间范围筛选）
     files, size = [], 0
     for d in agent.get("session_dirs") or []:
         for f in iter_files(expand(d)):
-            sz = f.stat().st_size
-            files.append({"path": str(f), "size": sz})
-            size += sz
+            st = f.stat()
+            files.append({"path": str(f), "size": st.st_size, "mtime": int(st.st_mtime)})
+            size += st.st_size
     result["conversations"] = {"files": files, "size": size}
     return result
 
