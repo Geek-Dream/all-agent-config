@@ -1,0 +1,147 @@
+# =============================================================================
+# All Agent Config —— Agent 工具注册表
+#
+# 每个工具声明：如何检测、如何安装、配置/会话数据在哪里。
+# 新增工具只需在本文档追加条目，无需改代码。
+#
+# sources 支持三种安装源：
+#   npm:    npm 包名（支持 用户级/全局 两种安装范围，见 installer.py）
+#   brew:   macOS Homebrew formula（暂不支持 Windows，标 TODO）
+#   manual: 无自动安装源，页面会提示用户手动安装并给出说明
+#
+# config_dirs / session_dirs 用于 M2 的配置导出/导入与对话迁移功能。
+# =============================================================================
+
+agents:
+  - id: claude-code
+    name: Claude Code
+    vendor: Anthropic
+    command: claude
+    version_cmd: claude --version
+    sources:
+      npm: "@anthropic-ai/claude-code"
+    config_dirs: ["~/.claude"]
+    session_dirs: ["~/.claude/projects"]
+    notes: 配置含 settings.json / CLAUDE.md / skills / plugins / hooks / statusline（状态栏自定义）
+
+  - id: codex
+    name: Codex CLI
+    vendor: OpenAI
+    command: codex
+    version_cmd: codex --version
+    sources:
+      npm: "@openai/codex"
+    config_dirs: ["~/.codex"]
+    session_dirs: ["~/.codex/sessions"]
+    notes: 配置含 config.toml / auth / skills / agents.md
+
+  - id: pi
+    name: Pi
+    vendor: Mario Zechner
+    command: pi
+    version_cmd: pi --version
+    sources:
+      npm: "@mariozechner/pi-coding-agent"
+    config_dirs: ["~/.pi"]
+    session_dirs: ["~/.pi/agent/sessions"]
+    notes: 配置含 settings.json / SYSTEM.md / APPEND_SYSTEM.md / 主题与状态栏自定义
+
+  - id: gemini-cli
+    name: Gemini CLI
+    vendor: Google
+    command: gemini
+    version_cmd: gemini --version
+    sources:
+      npm: "@google/gemini-cli"
+    config_dirs: ["~/.gemini"]
+    session_dirs: []
+    notes: 配置含 settings.json / GEMINI.md / extensions
+
+  - id: qwen-code
+    name: Qwen Code
+    vendor: Alibaba
+    command: qwen
+    version_cmd: qwen --version
+    sources:
+      npm: "@qwen-code/qwen-code"
+    config_dirs: ["~/.qwen"]
+    session_dirs: []
+    notes: Gemini CLI 的 fork，配置结构与 gemini 类似
+
+  - id: opencode
+    name: OpenCode
+    vendor: SST / anomaly
+    command: opencode
+    version_cmd: opencode --version
+    sources:
+      npm: "opencode-ai"
+    config_dirs: ["~/.config/opencode", "~/.local/share/opencode"]
+    session_dirs: ["~/.local/share/opencode/storage"]
+    notes: 也可用官方脚本 opencode.ai/install 安装
+
+  - id: kimi-code
+    name: Kimi Code
+    vendor: Moonshot AI
+    command: kimi
+    version_cmd: kimi --version
+    sources:
+      npm: "@moonshot-ai/kimi-cli"   # TODO: 待验证实际包名
+    config_dirs: ["~/.kimi"]
+    session_dirs: []
+    notes: 安装命令待验证，npm 包名可能变化
+
+  - id: crush
+    name: Crush
+    vendor: Charmbracelet
+    command: crush
+    version_cmd: crush --version
+    sources:
+      brew: "charmbracelet/tap/crush"   # Go 二进制，npm 无官方包
+      manual: "brew install charmbracelet/tap/crush ｜ Windows: scoop install crush"
+    config_dirs: ["~/.config/crush"]
+    session_dirs: []
+    notes: Go 实现，暂无 npm 源；自动安装仅支持 macOS(brew)
+
+  - id: grok-build
+    name: Grok Build
+    vendor: xAI
+    command: grok
+    version_cmd: grok --version
+    sources:
+      manual: "TODO: 待补充官方安装方式"
+    config_dirs: ["~/.grok"]
+    session_dirs: []
+    notes: 安装方式待确认，先占位
+
+  - id: deepseek-tui
+    name: DeepSeek-TUI
+    vendor: Community
+    command: deepseek-tui
+    version_cmd: deepseek-tui --version
+    sources:
+      manual: "TODO: 待补充官方安装方式"
+    config_dirs: ["~/.config/deepseek-tui"]
+    session_dirs: []
+    notes: 安装方式待确认，先占位
+
+  - id: zcode
+    name: ZCode
+    vendor: Zed Industries
+    command: zcode
+    version_cmd: zcode --version
+    sources:
+      manual: "TODO: 待补充官方安装方式"
+    config_dirs: ["~/.config/zcode"]
+    session_dirs: []
+    notes: 安装方式待确认，先占位
+
+  - id: mimo-code
+    name: MiMo Code
+    vendor: Xiaomi
+    command: mimo
+    version_cmd: mimo --version
+    sources:
+      manual: "TODO: 待补充官方安装方式"
+    config_dirs: ["~/.mimo"]
+    session_dirs: []
+    notes: 安装方式待确认，先占位
