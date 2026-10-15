@@ -237,6 +237,28 @@ agents:
     session_dirs: []
     notes: 安装方式待确认，先占位
 
+  - id: openclaw
+    name: OpenClaw 小龙虾
+    vendor: Community
+    homepage: "https://www.npmjs.com/package/openclaw-cn"
+    command: openclaw
+    version_cmd: openclaw --version
+    sources:
+      npm: "openclaw-cn"                  # 装后提供 openclaw / openclaw-cn / clawdbot-cn 三个别名
+    config_dirs: ["~/.openclaw"]
+    session_dirs: []
+    categories:
+      system:
+        - "~/.openclaw/openclaw.json"
+        - "~/.openclaw/exec-approvals.json"
+      skills: ["~/.openclaw/skills"]
+      custom:
+        - "~/.openclaw/agents"
+        - "~/.openclaw/subagents"
+        - "~/.openclaw/extensions"
+        - "~/.openclaw/identity"
+    notes: openclaw.json 的 hooks/skills/plugins 为内部结构不做键级开关；credentials 凭据不纳入导出
+
   - id: mimo-code
     name: MiMo Code
     vendor: Xiaomi
