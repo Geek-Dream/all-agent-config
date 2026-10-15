@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import backup, bundle, categories as catmod, cloud, configview, detect, env as envmod, installer, patchwork, registry
+from . import backup, bundle, categories as catmod, cloud, configview, detect, env as envmod, installer, meta, patchwork, registry
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -556,7 +556,29 @@ async def api_agent_config(agent_id: str) -> dict:
     agent = registry.get_agent(agent_id)
     if not agent:
         raise HTTPException(404, "unknown agent")
-    return await asyncio.to_thread(configview.list_config, agent)
+    cfg = await asyncio.to_thread(configview.list_config, agent)
+    m = meta.get_agent(agent_id)                       # 挂上用户标签/备注
+    for g in cfg["groups"]:
+        for it in g["items"]:
+            mm = m.get(it["id"])
+            if mm:
+                it["tag"] = mm.get("tag", "")
+                it["note"] = mm.get("note", "")
+    return cfg
+
+
+class MetaReq(BaseModel):
+    item_id: str
+    tag: str | None = None
+    note: str | None = None
+
+
+@app.post("/api/agents/{agent_id}/meta")
+def api_agent_meta(agent_id: str, req: MetaReq) -> dict:
+    agent = registry.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(404, "unknown agent")
+    return meta.set_item(agent_id, req.item_id, req.tag, req.note)
 
 
 @app.post("/api/agents/{agent_id}/toggle")

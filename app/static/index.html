@@ -324,6 +324,27 @@
   .cfg-row.off .info, .cfg-row.off .cfg-ico { opacity:.42; }
   .cfg-row .sw { margin-left:auto; }
 
+  /* 配置项标签 / 悬停详情 / 编辑 */
+  .tag { display:inline-block; margin-left:7px; padding:1px 8px; border-radius:999px;
+         font-size:11px; line-height:1.6; vertical-align:1px; color:var(--accent);
+         background:color-mix(in srgb, var(--accent) 13%, transparent);
+         border:1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+  .cfg-edit { flex:none; border:none; background:none; cursor:pointer; font-size:13px;
+              opacity:0; transition:opacity .2s ease; padding:2px 4px; color:var(--dim); }
+  .cfg-row:hover .cfg-edit { opacity:.75; }
+  .cfg-edit:hover { opacity:1 !important; color:var(--accent); }
+  #tip { position:fixed; z-index:300; max-width:380px; padding:10px 13px; border-radius:10px;
+         background:var(--panel2); border:1px solid var(--border); box-shadow:var(--shadow);
+         font-size:12.5px; line-height:1.65; color:var(--fg); pointer-events:none;
+         opacity:0; transform:translateY(4px); transition:opacity .18s ease, transform .18s ease; }
+  #tip.show { opacity:1; transform:translateY(0); }
+  #tip .t-meta { color:var(--dim); font-size:11.5px; margin-top:5px; word-break:break-all; }
+  .meta-edit { display:flex; flex-direction:column; gap:6px; flex:1; }
+  .meta-edit input { background:var(--bg); border:1px solid var(--border); border-radius:6px;
+                     color:var(--fg); padding:5px 9px; font-size:12.5px; }
+  .meta-edit .me-btns { display:flex; gap:6px; }
+  .meta-edit .me-btns button { font-size:12px; padding:3px 12px; }
+
   /* 日志面板：主题化浮动卡片 + 任务标题 + 状态徽章 */
   #logPanel { position:fixed; right:16px; bottom:16px; width:min(620px, calc(100% - 32px)); height:min(46vh, 480px);
       background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
@@ -581,6 +602,7 @@
   <div id="log"></div>
 </div>
 <div id="toast"></div>
+<div id="tip"></div>
 
 <script>
 /* ---------------- 按钮点击涟漪（全局委托） ---------------- */
@@ -967,12 +989,18 @@ function renderConfig(d){
       html += `<div class="group-empty">该工具没有此类配置</div>`;
     }
     for(const it of g.items){
-      html += `<div class="cfg-row ${it.enabled?'':'off'}">
+      const tipText = it.note || it.desc || '';
+      html += `<div class="cfg-row ${it.enabled?'':'off'}"
+        data-tip="${encodeURIComponent(tipText)}" data-tipm="${encodeURIComponent(it.meta||'')}"
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
         <span class="cfg-ico">${itemIcon(g.key,it)}</span>
-        <div class="info"><b>${esc(it.name)}</b>
+        <div class="info"><b>${esc(it.name)}</b>${it.tag?`<span class="tag">${esc(it.tag)}</span>`:''}
           ${it.desc?`<div class="meta">${esc(it.desc)}</div>`:''}
           ${it.meta?`<div class="meta">${esc(it.meta)}</div>`:''}
         </div>
+        <button class="cfg-edit" title="编辑标签/备注"
+          onclick="event.stopPropagation();editMeta('${d.agent.id}','${encodeURIComponent(it.id)}',this)"
+          data-tag="${encodeURIComponent(it.tag||'')}" data-note="${encodeURIComponent(it.note||'')}">✏️</button>
         <label class="sw"><input type="checkbox" ${it.enabled?'checked':''} ${it.toggleable?'':'disabled'}
           onclick="event.stopPropagation()"
           onchange="toggleCfg('${d.agent.id}','${encodeURIComponent(it.id)}',this.checked,this)"><i></i></label>
@@ -981,6 +1009,51 @@ function renderConfig(d){
     html += '</div></div></div>';
   });
   body.innerHTML = html || '<div style="color:var(--dim)">没有检测到任何配置项</div>';
+}
+
+/* ---------------- 配置项：悬停详情 + 标签/备注编辑 ---------------- */
+let TIP_TIMER = null;
+function showTip(row){
+  const text = decodeURIComponent(row.dataset.tip||'');
+  const meta = decodeURIComponent(row.dataset.tipm||'');
+  if(!text && !meta) return;
+  clearTimeout(TIP_TIMER);
+  TIP_TIMER = setTimeout(()=>{
+    const tip = document.getElementById('tip');
+    tip.innerHTML = (text?`<div>${esc(text)}</div>`:'') + (meta?`<div class="t-meta">${esc(meta)}</div>`:'');
+    const r = row.getBoundingClientRect();
+    tip.style.left = Math.min(r.left, innerWidth - 400) + 'px';
+    tip.style.top = Math.min(r.bottom + 6, innerHeight - 140) + 'px';
+    tip.classList.add('show');
+  }, 350);
+}
+function hideTip(){
+  clearTimeout(TIP_TIMER);
+  document.getElementById('tip').classList.remove('show');
+}
+function editMeta(agentId, encId, btn){
+  const id = decodeURIComponent(encId);
+  const row = btn.closest('.cfg-row');
+  const tag = decodeURIComponent(btn.dataset.tag||'');
+  const note = decodeURIComponent(btn.dataset.note||'');
+  const info = row.querySelector('.info');
+  info.innerHTML = `<div class="meta-edit">
+    <input id="me-tag" maxlength="18" placeholder="标签（≤6 个中文字）" value="${esc(tag)}">
+    <input id="me-note" placeholder="备注：这个配置项是做什么的…" value="${esc(note)}">
+    <div class="me-btns">
+      <button class="primary" onclick="saveMeta('${agentId}','${encId}')">💾 保存</button>
+      <button onclick="openConfig('${agentId}')">取消</button>
+    </div></div>`;
+  info.querySelector('#me-tag').focus();
+}
+async function saveMeta(agentId, encId){
+  const tag = document.getElementById('me-tag').value.trim();
+  const note = document.getElementById('me-note').value.trim();
+  await fetch(`/api/agents/${agentId}/meta`, {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({item_id:decodeURIComponent(encId), tag, note})});
+  toast('✅ 已保存标签/备注');
+  openConfig(agentId);
 }
 
 async function toggleCfg(agentId, encId, enabled, input){
