@@ -10,6 +10,10 @@
 #   manual: 无自动安装源，页面会提示用户手动安装并给出说明
 #
 # config_dirs / session_dirs 用于 M2 的配置导出/导入与对话迁移功能。
+#
+# 路径支持三种写法：~（用户目录）、$VAR/${VAR}、Windows %VAR%（如 %APPDATA%）。
+# XDG 风格工具（~/.config/xxx）建议同时给出 Windows 候选路径——扫描时
+# 不存在的路径会自动跳过，多个候选互不影响。
 # =============================================================================
 
 agents:
@@ -58,6 +62,9 @@ agents:
       mcp:
         - path: "~/.codex/config.toml"
           toml_keys: ["mcp_servers"]
+      hooks:
+        - path: "~/.codex/hooks.json"
+          json_keys: ["hooks"]
       skills: ["~/.codex/skills"]
       custom: ["~/.codex/AGENTS.md", "~/.codex/prompts"]
     notes: 配置含 config.toml / auth / skills / agents.md
@@ -133,18 +140,25 @@ agents:
     version_cmd: opencode --version
     sources:
       npm: "opencode-ai"
-    config_dirs: ["~/.config/opencode", "~/.local/share/opencode"]
-    session_dirs: ["~/.local/share/opencode/storage"]
+    config_dirs: ["~/.config/opencode", "~/.local/share/opencode",
+                  "%APPDATA%/opencode", "%LOCALAPPDATA%/opencode"]
+    session_dirs: ["~/.local/share/opencode/storage", "%LOCALAPPDATA%/opencode/storage"]
     categories:
       system:
         - path: "~/.config/opencode/opencode.json"
           json_keys: ["$schema", "theme", "model", "small_model", "autoshare", "disabled_providers", "plugin", "watcher"]
+        - path: "%APPDATA%/opencode/opencode.json"
+          json_keys: ["$schema", "theme", "model", "small_model", "autoshare", "disabled_providers", "plugin", "watcher"]
       mcp:
         - path: "~/.config/opencode/opencode.json"
+          json_keys: ["mcp"]
+        - path: "%APPDATA%/opencode/opencode.json"
           json_keys: ["mcp"]
       custom:
         - "~/.config/opencode/agent"
         - "~/.config/opencode/commands"
+        - "%APPDATA%/opencode/agent"
+        - "%APPDATA%/opencode/commands"
     notes: 也可用官方脚本 opencode.ai/install 安装
 
   - id: kimi-code
@@ -179,7 +193,7 @@ agents:
       brew: "charmbracelet/tap/crush"   # Go 二进制，npm 无官方包
       scoop: "crush"                    # Windows: scoop install crush
       manual: "brew install charmbracelet/tap/crush ｜ Windows: scoop install crush"
-    config_dirs: ["~/.config/crush"]
+    config_dirs: ["~/.config/crush", "%APPDATA%/crush"]
     session_dirs: []
     notes: Go 实现，暂无 npm 源；自动安装仅支持 macOS(brew)
 
@@ -203,7 +217,7 @@ agents:
     version_cmd: deepseek-tui --version
     sources:
       manual: "TODO: 待补充官方安装方式"
-    config_dirs: ["~/.config/deepseek-tui"]
+    config_dirs: ["~/.config/deepseek-tui", "%APPDATA%/deepseek-tui"]
     session_dirs: []
     notes: 安装方式待确认，先占位
 
@@ -215,7 +229,7 @@ agents:
     version_cmd: zcode --version
     sources:
       manual: "TODO: 待补充官方安装方式"
-    config_dirs: ["~/.config/zcode"]
+    config_dirs: ["~/.config/zcode", "%APPDATA%/zcode"]
     session_dirs: []
     notes: 安装方式待确认，先占位
 
@@ -239,10 +253,12 @@ agents:
     homepage: "https://ampcode.com"
     sources:
       npm: "@sourcegraph/amp"
-    config_dirs: ["~/.config/amp"]
+    config_dirs: ["~/.config/amp", "%APPDATA%/amp"]
     session_dirs: []
     categories:
-      system: ["~/.config/amp/settings.json"]
+      system:
+        - "~/.config/amp/settings.json"
+        - "%APPDATA%/amp/settings.json"
     notes: Sourcegraph 的 Agent CLI
 
   - id: copilot-cli
@@ -313,10 +329,12 @@ agents:
     sources:
       brew: "block/goose/goose"
       manual: "curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash"
-    config_dirs: ["~/.config/goose"]
-    session_dirs: ["~/.local/share/goose/sessions"]
+    config_dirs: ["~/.config/goose", "%APPDATA%/goose"]
+    session_dirs: ["~/.local/share/goose/sessions", "%LOCALAPPDATA%/goose/sessions"]
     categories:
-      system: ["~/.config/goose/config.yaml"]
+      system:
+        - "~/.config/goose/config.yaml"
+        - "%APPDATA%/goose/config.yaml"
     notes: Block 开源的本地 Agent 框架
 
   - id: cursor-agent

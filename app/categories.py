@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tarfile
@@ -50,8 +51,13 @@ def _run(cmd: list[str], timeout: int = 30) -> str:
         return ""
 
 
+_WIN_ENV = re.compile(r"%([^%]+)%")
+
+
 def expand(p: str) -> Path:
-    return Path(p).expanduser()
+    """展开路径：Unix ~ 与 $VAR/${VAR}，外加 Windows %VAR% 写法（跨平台注册表共用）。"""
+    p = _WIN_ENV.sub(lambda m: os.environ.get(m.group(1), m.group(0)), p)
+    return Path(os.path.expandvars(p)).expanduser()
 
 
 SKIP_DIR_NAMES = {"node_modules", ".git", "__pycache__", ".venv", "venv", ".tmp", ".cache"}
