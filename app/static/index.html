@@ -270,6 +270,7 @@
   .modal header h2 { font-size:15px; }
   .modal .body { padding:14px 18px; overflow:auto; }
   .modal footer { padding:12px 18px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
+  .modal footer .kbd-hint { margin-right:auto; align-self:center; font-size:11px; color:var(--dim); opacity:.7; }
   .modal input[type=text], .modal input[type=password] { background:var(--bg); border:1px solid var(--border);
       border-radius:6px; color:var(--fg); padding:6px 10px; }
   .cat-row { display:flex; align-items:center; gap:12px; padding:9px 8px; border-bottom:1px solid var(--border);
@@ -506,6 +507,7 @@
     <header><h2 id="updateTitle">⚠️ 更新将覆盖你的程序修改</h2><button onclick="closeModal('updateMask')">✕</button></header>
     <div class="body" id="updateBody"></div>
     <footer>
+      <span class="kbd-hint">回车 备份补丁并更新 · Esc 取消</span>
       <button onclick="closeModal('updateMask')">取消</button>
       <button onclick="updateDirect()">直接更新（放弃补丁）</button>
       <button class="primary" onclick="updateSafe()">💾 备份补丁并更新（推荐）</button>
@@ -524,6 +526,7 @@
       <div style="font-size:12px;color:var(--dim);margin-top:10px">🔒 密码只保存在本次会话的内存里，不写磁盘、不上传；关闭页面即失效，也可在「设置」里随时清除。</div>
     </div>
     <footer>
+      <span class="kbd-hint">回车 确定 · Esc 取消</span>
       <button onclick="closeModal('sudoMask')">取消</button>
       <button class="primary" onclick="confirmSudo()">✅ 确定并继续</button>
     </footer>
@@ -538,6 +541,7 @@
       <div id="confirmBody" style="font-size:14px;line-height:1.7"></div>
     </div>
     <footer>
+      <span class="kbd-hint">回车 确认执行 · Esc 取消</span>
       <button onclick="closeModal('confirmMask')">取消</button>
       <button class="primary" id="confirmOkBtn" onclick="doConfirm()">✅ 确认执行</button>
     </footer>
@@ -763,6 +767,32 @@ function toast(msg){
   t._timer=setTimeout(()=>t.classList.remove('show'),3000);
 }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+/* ---------------- 全局弹窗快捷键：Esc 关闭 · 回车确认 ---------------- */
+document.addEventListener('keydown', e=>{
+  // 数组顺序 = 叠放顺序，越靠后越顶层（sudo/确认弹窗可能叠在配置详情之上）
+  const MASKS = ['configMask','exportMask','importMask','envMask','archiveMask',
+                 'settingsMask','updateMask','confirmMask','sudoMask'];
+  const openMasks = MASKS.map(id=>document.getElementById(id))
+                         .filter(m=>m && m.classList.contains('open'));
+  if(e.key === 'Escape'){
+    const top = openMasks[openMasks.length-1];
+    if(top){ closeModal(top.id); return; }
+    const log = document.getElementById('logPanel');
+    if(log.classList.contains('open')) log.classList.remove('open');
+    return;
+  }
+  if(e.key === 'Enter' && !e.target.closest('input,textarea,select')){
+    const top = openMasks[openMasks.length-1];
+    if(!top) return;
+    e.preventDefault();
+    if(top.id==='confirmMask') doConfirm();
+    else if(top.id==='sudoMask') confirmSudo();
+    else if(top.id==='updateMask') updateSafe();
+    else if(top.id==='exportMask') confirmExport();
+    else if(top.id==='importMask') confirmImport();
+  }
+});
 
 function skeletonRows(){
   return Array.from({length:5},(_,i)=>
