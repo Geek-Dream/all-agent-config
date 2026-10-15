@@ -106,7 +106,7 @@ def _json_items(agent: dict, cat_key: str) -> list[dict]:
             continue
         keys = e.get("json_keys") or []
         f = expand(e["path"])
-        if not f.is_file():
+        if not f.is_file() or f.suffix != ".json":
             continue
         try:
             data = json.loads(f.read_text())
@@ -119,6 +119,35 @@ def _json_items(agent: dict, cat_key: str) -> list[dict]:
                 items.append(_json_item(f, c, name, val, True))
             for name, val in sorted(off.items()):
                 items.append(_json_item(f, c, name, val, False))
+    return items
+
+
+def _toml_items(agent: dict, cat_key: str) -> list[dict]:
+    """TOML 键类配置项（如 Codex config.toml 里的 mcp_servers）。
+
+    只展示、不给开关：TOML 没有官方写库，改写会丢注释和格式，风险大于收益。
+    """
+    import tomllib
+
+    items: list[dict] = []
+    for e in (agent.get("categories") or {}).get(cat_key) or []:
+        if isinstance(e, str):
+            continue
+        keys = e.get("toml_keys") or []
+        f = expand(e["path"])
+        if not f.is_file() or f.suffix != ".toml":
+            continue
+        try:
+            data = tomllib.loads(f.read_text())
+        except Exception:
+            continue
+        for c in [k for k in keys if isinstance(data.get(k), dict)]:
+            for name, val in sorted((data.get(c) or {}).items()):
+                it = _json_item(f, c, name, val, True)
+                it["id"] = f"toml|{f}|{c}|{name}"
+                it["toggleable"] = False
+                it["meta"] = (it["meta"] + " · 通用配置" if it["meta"] else "通用配置")
+                items.append(it)
     return items
 
 
@@ -210,7 +239,8 @@ def list_config(agent: dict) -> dict:
         "groups": [
             {"key": "skills", "label": "Skills 技能", "items": skills},
             {"key": "ext", "label": "扩展 / 命令 / 子代理", "items": exts},
-            {"key": "mcp", "label": "MCP 服务器", "items": _json_items(agent, "mcp")},
+            {"key": "mcp", "label": "MCP 服务器",
+             "items": _json_items(agent, "mcp") + _toml_items(agent, "mcp")},
             {"key": "hooks", "label": "Hooks 钩子", "items": _json_items(agent, "hooks")},
             {"key": "files", "label": "配置文件", "items": _file_items(agent) + extra_dirs},
         ],

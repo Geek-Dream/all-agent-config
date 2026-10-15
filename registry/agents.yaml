@@ -55,6 +55,9 @@ agents:
     session_dirs: ["~/.codex/sessions"]
     categories:
       system: ["~/.codex/config.toml"]
+      mcp:
+        - path: "~/.codex/config.toml"
+          toml_keys: ["mcp_servers"]
       skills: ["~/.codex/skills"]
       custom: ["~/.codex/AGENTS.md", "~/.codex/prompts"]
     notes: 配置含 config.toml / auth / skills / agents.md
