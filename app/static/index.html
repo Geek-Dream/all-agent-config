@@ -10,7 +10,7 @@
     --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#30363d;
     --fg:#e6edf3; --dim:#8b949e;
     --green:#3fb950; --orange:#d29922; --gray:#6e7681; --blue:#58a6ff; --red:#f85149;
-    --accent:#58a6ff; --accent-fg:#0d1117; --glow:none;
+    --accent:#58a6ff; --accent-fg:#0d1117; --glow:none; --violet:#d2a8ff;
     --btn-bg:#21262d;
     --log-bg:#010409; --log-fg:#a5d6ff;
     --shadow:0 8px 30px rgba(0,0,0,.35);
@@ -21,7 +21,7 @@
     --bg:#f4f6fa; --panel:#ffffff; --panel2:#f0f3f8; --border:#dde3ec;
     --fg:#1f2430; --dim:#68738a;
     --green:#1a7f37; --orange:#b08800; --gray:#8a93a6; --blue:#2563eb; --red:#d6362c;
-    --accent:#2563eb; --accent-fg:#ffffff; --glow:none;
+    --accent:#2563eb; --accent-fg:#ffffff; --glow:none; --violet:#7c3aed;
     --btn-bg:#eef1f7;
     --log-bg:#f5f7fb; --log-fg:#3a4a63;
     --shadow:0 8px 30px rgba(31,36,48,.10);
@@ -31,7 +31,7 @@
     --bg:#080400; --panel:#140b02; --panel2:#1d1104; --border:#3d2512;
     --fg:#ffe9d2; --dim:#96765a;
     --green:#a4e34d; --orange:#ffb02e; --gray:#6b543c; --blue:#ff9e2c; --red:#ff5a4d;
-    --accent:#ff9e2c; --accent2:#ffc42e; --accent-fg:#1a0d00;
+    --accent:#ff9e2c; --accent2:#ffc42e; --accent-fg:#1a0d00; --violet:#ff6ec7;
     --glow:0 0 8px rgba(255,158,44,.55), 0 0 24px rgba(255,158,44,.18);
     --btn-bg:#1e1206;
     --log-bg:#050200; --log-fg:#ffcf8f;
@@ -326,9 +326,25 @@
 
   /* 配置项标签 / 悬停详情 / 编辑 */
   .tag { display:inline-block; margin-left:7px; padding:1px 8px; border-radius:999px;
-         font-size:11px; line-height:1.6; vertical-align:1px; color:var(--accent);
-         background:color-mix(in srgb, var(--accent) 13%, transparent);
-         border:1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+         font-size:11px; line-height:1.6; vertical-align:1px; color:var(--tag-c, var(--accent));
+         background:color-mix(in srgb, var(--tag-c, var(--accent)) 13%, transparent);
+         border:1px solid color-mix(in srgb, var(--tag-c, var(--accent)) 30%, transparent);
+         transition:box-shadow .25s ease, border-color .25s ease, transform .25s ease; }
+  .tag.v1 { --tag-c:var(--green); }
+  .tag.v2 { --tag-c:var(--orange); }
+  .tag.v3 { --tag-c:var(--violet); }
+  [data-theme="light"] .tag { background:color-mix(in srgb, var(--tag-c, var(--accent)) 9%, transparent);
+         border-color:color-mix(in srgb, var(--tag-c, var(--accent)) 38%, transparent); }
+  [data-theme="tech"] .tag {
+         border-color:color-mix(in srgb, var(--tag-c, var(--accent)) 55%, transparent);
+         text-shadow:0 0 6px color-mix(in srgb, var(--tag-c, var(--accent)) 60%, transparent);
+         box-shadow:0 0 7px color-mix(in srgb, var(--tag-c, var(--accent)) 35%, transparent),
+                    inset 0 0 6px color-mix(in srgb, var(--tag-c, var(--accent)) 14%, transparent); }
+  .cfg-row:hover .tag { transform:translateY(-1px);
+         box-shadow:0 0 10px color-mix(in srgb, var(--tag-c, var(--accent)) 30%, transparent); }
+  [data-theme="tech"] .cfg-row:hover .tag {
+         box-shadow:0 0 12px color-mix(in srgb, var(--tag-c, var(--accent)) 55%, transparent),
+                    inset 0 0 8px color-mix(in srgb, var(--tag-c, var(--accent)) 22%, transparent); }
   .cfg-edit { flex:none; border:none; background:none; cursor:pointer; font-size:13px;
               opacity:0; transition:opacity .2s ease; padding:2px 4px; color:var(--dim); }
   .cfg-row:hover .cfg-edit { opacity:.75; }
@@ -661,6 +677,7 @@ let TOOLS = [], EXPORT_STATE = null, IMPORT_STATE = null;
 let BUSY = {}, FAILED = {};   // agentId -> 进行中 / 失败的操作（install|update|uninstall）
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function tagVariant(t){ let h=0; for(const c of String(t)) h=(h*31+c.charCodeAt(0))>>>0; return 'v'+(h%4); }
 function fmtSize(n){ if(!n) return '0 B'; const u=['B','KB','MB','GB']; let i=0;
   while(n>=1024 && i<u.length-1){ n/=1024; i++; } return n.toFixed(n>=10||i===0?0:1)+' '+u[i]; }
 function scope(){ return document.querySelector('input[name=scope]:checked').value; }
@@ -994,7 +1011,7 @@ function renderConfig(d){
         data-tip="${encodeURIComponent(tipText)}" data-tipm="${encodeURIComponent(it.meta||'')}"
         onmouseenter="showTip(this)" onmouseleave="hideTip()">
         <span class="cfg-ico">${itemIcon(g.key,it)}</span>
-        <div class="info"><b>${esc(it.name)}</b>${it.tag?`<span class="tag">${esc(it.tag)}</span>`:''}
+        <div class="info"><b>${esc(it.name)}</b>${it.tag?`<span class="tag ${tagVariant(it.tag)}">${esc(it.tag)}</span>`:''}
           ${it.desc?`<div class="meta">${esc(it.desc)}</div>`:''}
           ${it.meta?`<div class="meta">${esc(it.meta)}</div>`:''}
         </div>
