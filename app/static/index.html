@@ -1027,8 +1027,8 @@ function renderConfig(d){
         onmouseenter="showTip(this)" onmouseleave="hideTip()">
         <span class="cfg-ico">${itemIcon(g.key,it)}</span>
         <div class="info"><b>${esc(it.name)}</b>${it.tag
-          ?`<span class="tag ${tagVariant(it.tag)}" title="点击修改标签/备注" onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}')">${esc(it.tag)}</span>`
-          :`<button class="tag-add" title="添加标签/备注" onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}')">＋</button>`}
+          ?`<span class="tag ${tagVariant(it.tag)}" title="点击修改标签/备注" onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}',this)">${esc(it.tag)}</span>`
+          :`<button class="tag-add" title="添加标签/备注" onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}',this)">＋</button>`}
           ${dispDesc?`<div class="meta">${esc(dispDesc)}</div>`:''}
           ${it.meta?`<div class="meta">${esc(it.meta)}</div>`:''}
         </div>
