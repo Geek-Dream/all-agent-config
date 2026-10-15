@@ -292,6 +292,7 @@
   .cfg-summary b { color:var(--green); font-weight:600; }
   .group { background:var(--panel2); border:1px solid var(--border); border-radius:10px;
            padding:4px 10px 6px; margin-bottom:12px; animation:fadeUp .4s ease both; }
+  .group.noanim { animation:none; }
   [data-theme="tech"] .group { border-color:color-mix(in srgb, var(--accent) 22%, var(--border)); }
   .group-head { display:flex; align-items:center; gap:9px; padding:9px 4px 8px;
                 font-size:13px; font-weight:600; cursor:pointer; user-select:none; border-radius:8px;
@@ -1031,20 +1032,31 @@ async function openConfig(id){
   renderConfig(d);
 }
 
+/* 静默刷新：不闪骨架屏、不重播进入动画，保持滚动位置和分组的展开/收起状态 */
+async function refreshConfig(id){
+  const body = document.getElementById('configBody');
+  const st = body.scrollTop;
+  const collapsed = [...body.querySelectorAll('.group')].map(g=>g.classList.contains('collapsed'));
+  const d = await (await fetch(`/api/agents/${id}/config`)).json();
+  renderConfig(d, true);
+  [...body.querySelectorAll('.group')].forEach((g,i)=>{ if(collapsed[i]) g.classList.add('collapsed'); });
+  body.scrollTop = st;
+}
+
 const G_ICONS = {skills:'🧩', ext:'🧰', mcp:'🔌', hooks:'🪝', files:'📄'};
 function itemIcon(gkey, it){
   if(gkey==='mcp') return '🔌';
   if(gkey==='hooks') return '🪝';
   return (it.meta||'').startsWith('目录') ? '📁' : '📄';
 }
-function renderConfig(d){
+function renderConfig(d, quiet){
   const body = document.getElementById('configBody');
   const total = d.groups.reduce((a,g)=>a+g.items.length,0);
   const onTotal = d.groups.reduce((a,g)=>a+g.items.filter(i=>i.enabled).length,0);
   let html = `<div class="cfg-summary">共 ${total} 个配置项，<b>${onTotal} 个开启</b>，${total-onTotal} 个关闭</div>`;
   d.groups.forEach((g,gi)=>{
     const onCount = g.items.filter(i=>i.enabled).length;
-    html += `<div class="group" style="animation-delay:${gi*70}ms">
+    html += `<div class="group${quiet?' noanim':''}"${quiet?'':` style="animation-delay:${gi*70}ms"`}>
       <div class="group-head" onclick="this.parentElement.classList.toggle('collapsed')">
         <span class="g-ico">${G_ICONS[g.key]||'🧩'}</span>${esc(g.label)}
         <span class="g-count ${onCount?'on':''}">${onCount} / ${g.items.length}</span>
@@ -1110,12 +1122,12 @@ async function saveTags(agentId, encId, tags){
   await fetch(`/api/agents/${agentId}/meta`, {method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({item_id:decodeURIComponent(encId), tags})});
-  openConfig(agentId);
+  refreshConfig(agentId);
 }
 function bindTagInput(inp, agentId, encId, oldVal){
   const row = inp.closest('.cfg-row');
   let done = false;
-  const cancel = ()=>{ if(!done){ done = true; openConfig(agentId); } };
+  const cancel = ()=>{ if(!done){ done = true; refreshConfig(agentId); } };
   const save = async ()=>{
     if(done) return; done = true;
     const v = inp.value.trim().slice(0,18);
@@ -1162,14 +1174,14 @@ function editMeta(agentId, encId, el){
       onkeydown="meKey(event,'${agentId}','${encId}')">
     <div class="me-btns">
       <button class="primary" onclick="saveMeta('${agentId}','${encId}')">💾 保存备注</button>
-      <button onclick="openConfig('${agentId}')">取消</button>
+      <button onclick="refreshConfig('${agentId}')">取消</button>
       <span class="me-hint">回车保存 · Esc 取消 · 标签点标签本身改</span>
     </div></div>`;
   info.querySelector('#me-note').focus();
 }
 function meKey(e, agentId, encId){
   if(e.key === 'Enter'){ e.preventDefault(); saveMeta(agentId, encId); }
-  else if(e.key === 'Escape'){ e.stopPropagation(); openConfig(agentId); }
+  else if(e.key === 'Escape'){ e.stopPropagation(); refreshConfig(agentId); }
 }
 async function saveMeta(agentId, encId){
   const note = document.getElementById('me-note').value.trim();
@@ -1177,7 +1189,7 @@ async function saveMeta(agentId, encId){
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({item_id:decodeURIComponent(encId), note})});
   toast('✅ 已保存备注');
-  openConfig(agentId);
+  refreshConfig(agentId);
 }
 
 async function toggleCfg(agentId, encId, enabled, input){
