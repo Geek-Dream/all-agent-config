@@ -24,7 +24,8 @@ CORE_FILES = {"settings.json", "config.toml", "opencode.json",
 
 # custom 里这些名字的目录视为"条目集合"（agents/commands/extensions/prompts/plugins），
 # 子项逐个给开关；其余目录（如下载的整个市场仓库）整体展示，不给开关
-CONTAINER_DIR_NAMES = {"agent", "agents", "commands", "extensions", "prompts", "plugins"}
+CONTAINER_DIR_NAMES = {"agent", "agents", "commands", "extensions", "prompts",
+                       "plugins", "hooks", "rules", "themes"}
 
 
 def _entry_path(e) -> Path:

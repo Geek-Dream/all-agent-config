@@ -45,6 +45,8 @@ agents:
         - "~/.claude/statusline.sh"
         - "~/.claude/agents"
         - "~/.claude/commands"
+        - "~/.claude/hooks"
+        - "~/.claude/rules"
     notes: 配置含 settings.json / CLAUDE.md / skills / plugins / hooks / statusline（状态栏自定义）
 
   - id: codex
@@ -90,6 +92,7 @@ agents:
       custom:
         - "~/.pi/agent/statusline-pi.json"
         - "~/.pi/agent/wl-setup.json"
+        - "~/.pi/agent/themes"
         - "~/.pi/SYSTEM.md"
         - "~/.pi/APPEND_SYSTEM.md"
         - "~/.pi/agent/extensions"
@@ -140,6 +143,7 @@ agents:
     version_cmd: opencode --version
     sources:
       npm: "opencode-ai"
+    bin_paths: ["~/.opencode/bin"]      # 官方脚本默认装到 ~/.opencode/bin
     config_dirs: ["~/.config/opencode", "~/.local/share/opencode",
                   "%APPDATA%/opencode", "%LOCALAPPDATA%/opencode"]
     session_dirs: ["~/.local/share/opencode/storage", "%LOCALAPPDATA%/opencode/storage"]
@@ -273,7 +277,9 @@ agents:
     session_dirs: ["~/.copilot/history-session-state"]
     categories:
       system: ["~/.copilot/config.json"]
-      custom: ["~/.copilot/agents"]
+      custom:
+        - "~/.copilot/agents"
+        - "~/.copilot/hooks"
     notes: GitHub 官方 Copilot 终端 Agent
 
   - id: auggie
@@ -348,5 +354,17 @@ agents:
     config_dirs: ["~/.cursor"]
     session_dirs: []
     categories:
-      system: ["~/.cursor/cli-config.json"]
+      system:
+        - "~/.cursor/cli-config.json"
+        - "~/.cursor/mcp.json"
+        - "~/.cursor/hooks.json"
+      mcp:
+        - path: "~/.cursor/mcp.json"
+          json_keys: ["mcpServers"]
+      hooks:
+        - path: "~/.cursor/hooks.json"
+          json_keys: ["hooks"]
+      custom:
+        - "~/.cursor/agents"
+        - "~/.cursor/skills-cursor"
     notes: Cursor 的终端 Agent，官方脚本安装
