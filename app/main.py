@@ -562,14 +562,14 @@ async def api_agent_config(agent_id: str) -> dict:
         for it in g["items"]:
             mm = m.get(it["id"])
             if mm:
-                it["tag"] = mm.get("tag", "")
+                it["tags"] = mm.get("tags", [])
                 it["note"] = mm.get("note", "")
     return cfg
 
 
 class MetaReq(BaseModel):
     item_id: str
-    tag: str | None = None
+    tags: list[str] | None = None
     note: str | None = None
 
 
@@ -578,7 +578,7 @@ def api_agent_meta(agent_id: str, req: MetaReq) -> dict:
     agent = registry.get_agent(agent_id)
     if not agent:
         raise HTTPException(404, "unknown agent")
-    return meta.set_item(agent_id, req.item_id, req.tag, req.note)
+    return meta.set_item(agent_id, req.item_id, req.tags, req.note)
 
 
 @app.post("/api/agents/{agent_id}/toggle")

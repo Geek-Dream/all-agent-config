@@ -355,6 +355,11 @@
              font-size:11px; line-height:1; cursor:pointer; color:var(--dim);
              background:transparent; border:1px dashed color-mix(in srgb, var(--dim) 55%, transparent);
              opacity:.35; transition:all .25s ease; }
+  .tag-input { width:96px; margin-left:7px; padding:1px 8px; border-radius:999px; vertical-align:1px;
+             font-size:11px; line-height:1.6; background:var(--bg); color:var(--fg);
+             border:1px solid var(--accent); outline:none;
+             box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+  [data-theme="tech"] .tag-input { box-shadow:0 0 0 3px rgba(255,158,44,.18), 0 0 10px rgba(255,158,44,.4); }
   .cfg-row:hover .tag-add { opacity:.8; }
   .tag-add:hover { opacity:1 !important; color:var(--accent); border-color:var(--accent);
              border-style:solid; transform:scale(1.15) rotate(90deg); box-shadow:var(--glow); }
@@ -1052,19 +1057,22 @@ function renderConfig(d){
       const tipText = it.note || it.desc || '';
       const dispDesc = it.note || it.desc || '';
       const encId = encodeURIComponent(it.id);
+      const tags = it.tags || [];
+      const chips = tags.map(t=>
+        `<span class="tag ${tagVariant(t)}" title="点击修改这个标签"
+           onclick="event.stopPropagation();editTag(this,'${d.agent.id}','${encId}')">${esc(t)}</span>`).join('');
       html += `<div class="cfg-row ${it.enabled?'':'off'}"
         data-tip="${encodeURIComponent(tipText)}" data-tipm="${encodeURIComponent(it.meta||'')}"
-        data-tag="${encodeURIComponent(it.tag||'')}" data-note="${encodeURIComponent(it.note||'')}"
+        data-tags="${encodeURIComponent(JSON.stringify(tags))}" data-note="${encodeURIComponent(it.note||'')}"
         onmouseenter="showTip(this)" onmouseleave="hideTip()">
         <span class="cfg-ico">${itemIcon(g.key,it)}</span>
-        <div class="info"><b>${esc(it.name)}</b>${it.tag
-          ?`<span class="tag ${tagVariant(it.tag)}" title="点击修改标签/备注" onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}',this)">${esc(it.tag)}</span>`
-          :`<button class="tag-add" title="添加标签/备注" onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}',this)">＋</button>`}
+        <div class="info"><b>${esc(it.name)}</b><span class="tags">${chips}<button class="tag-add" title="添加标签"
+           onclick="event.stopPropagation();addTag(this,'${d.agent.id}','${encId}')">＋</button></span>
           ${dispDesc?`<div class="meta">${esc(dispDesc)}</div>`:''}
           ${it.meta?`<div class="meta">${esc(it.meta)}</div>`:''}
         </div>
-        <button class="cfg-edit" title="编辑标签/备注"
-          onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}')">✏️</button>
+        <button class="cfg-edit" title="编辑备注"
+          onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}',this)">✏️</button>
         <label class="sw"><input type="checkbox" ${it.enabled?'checked':''} ${it.toggleable?'':'disabled'}
           onclick="event.stopPropagation()"
           onchange="toggleCfg('${d.agent.id}','${encodeURIComponent(it.id)}',this.checked,this)"><i></i></label>
@@ -1095,35 +1103,80 @@ function hideTip(){
   clearTimeout(TIP_TIMER);
   document.getElementById('tip').classList.remove('show');
 }
+function rowTags(row){
+  try { return JSON.parse(decodeURIComponent(row.dataset.tags||'[]')); } catch(e){ return []; }
+}
+async function saveTags(agentId, encId, tags){
+  await fetch(`/api/agents/${agentId}/meta`, {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({item_id:decodeURIComponent(encId), tags})});
+  openConfig(agentId);
+}
+function bindTagInput(inp, agentId, encId, oldVal){
+  const row = inp.closest('.cfg-row');
+  let done = false;
+  const cancel = ()=>{ if(!done){ done = true; openConfig(agentId); } };
+  const save = async ()=>{
+    if(done) return; done = true;
+    const v = inp.value.trim().slice(0,18);
+    const tags = rowTags(row);
+    let nt;
+    if(oldVal === null){                        // ＋ 新增；留空 = 不加
+      nt = v ? [...tags, v] : tags;
+    } else {                                    // 修改；留空 = 删掉这个标签
+      nt = tags.map(t=>t===oldVal ? v : t).filter(Boolean);
+    }
+    nt = [...new Set(nt)].slice(0,8);
+    await saveTags(agentId, encId, nt);
+    toast('✅ 标签已更新');
+  };
+  inp.addEventListener('keydown', e=>{
+    e.stopPropagation();
+    if(e.key === 'Enter'){ e.preventDefault(); save(); }
+    else if(e.key === 'Escape'){ cancel(); }
+  });
+  inp.addEventListener('blur', save);
+}
+function addTag(btn, agentId, encId){
+  hideTip();
+  const inp = document.createElement('input');
+  inp.className = 'tag-input'; inp.maxLength = 18; inp.placeholder = '新标签';
+  btn.replaceWith(inp); inp.focus();
+  bindTagInput(inp, agentId, encId, null);
+}
+function editTag(chip, agentId, encId){
+  hideTip();
+  const old = chip.textContent;
+  const inp = document.createElement('input');
+  inp.className = 'tag-input'; inp.maxLength = 18; inp.value = old;
+  chip.replaceWith(inp); inp.focus(); inp.select();
+  bindTagInput(inp, agentId, encId, old);
+}
 function editMeta(agentId, encId, el){
-  const id = decodeURIComponent(encId);
+  hideTip();
   const row = el.closest('.cfg-row');
-  const tag = decodeURIComponent(row.dataset.tag||'');
   const note = decodeURIComponent(row.dataset.note||'');
   const info = row.querySelector('.info');
   info.innerHTML = `<div class="meta-edit">
-    <input id="me-tag" maxlength="18" placeholder="标签（≤6 个中文字）" value="${esc(tag)}"
-      onkeydown="meKey(event,'${agentId}','${encId}')">
     <input id="me-note" placeholder="备注：这个配置项是做什么的…" value="${esc(note)}"
       onkeydown="meKey(event,'${agentId}','${encId}')">
     <div class="me-btns">
-      <button class="primary" onclick="saveMeta('${agentId}','${encId}')">💾 保存</button>
+      <button class="primary" onclick="saveMeta('${agentId}','${encId}')">💾 保存备注</button>
       <button onclick="openConfig('${agentId}')">取消</button>
-      <span class="me-hint">回车保存 · Esc 取消</span>
+      <span class="me-hint">回车保存 · Esc 取消 · 标签点标签本身改</span>
     </div></div>`;
-  info.querySelector('#me-tag').focus();
+  info.querySelector('#me-note').focus();
 }
 function meKey(e, agentId, encId){
   if(e.key === 'Enter'){ e.preventDefault(); saveMeta(agentId, encId); }
   else if(e.key === 'Escape'){ e.stopPropagation(); openConfig(agentId); }
 }
 async function saveMeta(agentId, encId){
-  const tag = document.getElementById('me-tag').value.trim();
   const note = document.getElementById('me-note').value.trim();
   await fetch(`/api/agents/${agentId}/meta`, {method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({item_id:decodeURIComponent(encId), tag, note})});
-  toast('✅ 已保存标签/备注');
+    body:JSON.stringify({item_id:decodeURIComponent(encId), note})});
+  toast('✅ 已保存备注');
   openConfig(agentId);
 }
 
