@@ -325,7 +325,7 @@
   .cfg-row .sw { margin-left:auto; }
 
   /* 配置项标签 / 悬停详情 / 编辑 */
-  .tag { display:inline-block; margin-left:7px; padding:1px 8px; border-radius:999px;
+  .tag { display:inline-block; margin-left:7px; padding:1px 8px; border-radius:999px; cursor:pointer;
          font-size:11px; line-height:1.6; vertical-align:1px; color:var(--tag-c, var(--accent));
          background:color-mix(in srgb, var(--tag-c, var(--accent)) 13%, transparent);
          border:1px solid color-mix(in srgb, var(--tag-c, var(--accent)) 30%, transparent);
@@ -349,6 +349,18 @@
               opacity:0; transition:opacity .2s ease; padding:2px 4px; color:var(--dim); }
   .cfg-row:hover .cfg-edit { opacity:.75; }
   .cfg-edit:hover { opacity:1 !important; color:var(--accent); }
+  .tag-add { display:inline-flex; align-items:center; justify-content:center; margin-left:7px;
+             width:17px; height:17px; padding:0; border-radius:50%; vertical-align:1px;
+             font-size:11px; line-height:1; cursor:pointer; color:var(--dim);
+             background:transparent; border:1px dashed color-mix(in srgb, var(--dim) 55%, transparent);
+             opacity:.35; transition:all .25s ease; }
+  .cfg-row:hover .tag-add { opacity:.8; }
+  .tag-add:hover { opacity:1 !important; color:var(--accent); border-color:var(--accent);
+             border-style:solid; transform:scale(1.15) rotate(90deg); box-shadow:var(--glow); }
+  [data-theme="tech"] .tag-add:hover { box-shadow:0 0 8px rgba(255,158,44,.5); }
+  [data-theme="tech"] .g-ico { text-shadow:0 0 8px rgba(255,158,44,.75);
+             box-shadow:0 0 10px rgba(255,158,44,.22), inset 0 0 8px rgba(255,158,44,.12);
+             border:1px solid rgba(255,158,44,.28); }
   #tip { position:fixed; z-index:300; max-width:380px; padding:10px 13px; border-radius:10px;
          background:var(--panel2); border:1px solid var(--border); box-shadow:var(--shadow);
          font-size:12.5px; line-height:1.65; color:var(--fg); pointer-events:none;
@@ -1007,17 +1019,21 @@ function renderConfig(d){
     }
     for(const it of g.items){
       const tipText = it.note || it.desc || '';
+      const dispDesc = it.note || it.desc || '';
+      const encId = encodeURIComponent(it.id);
       html += `<div class="cfg-row ${it.enabled?'':'off'}"
         data-tip="${encodeURIComponent(tipText)}" data-tipm="${encodeURIComponent(it.meta||'')}"
+        data-tag="${encodeURIComponent(it.tag||'')}" data-note="${encodeURIComponent(it.note||'')}"
         onmouseenter="showTip(this)" onmouseleave="hideTip()">
         <span class="cfg-ico">${itemIcon(g.key,it)}</span>
-        <div class="info"><b>${esc(it.name)}</b>${it.tag?`<span class="tag ${tagVariant(it.tag)}">${esc(it.tag)}</span>`:''}
-          ${it.desc?`<div class="meta">${esc(it.desc)}</div>`:''}
+        <div class="info"><b>${esc(it.name)}</b>${it.tag
+          ?`<span class="tag ${tagVariant(it.tag)}" title="点击修改标签/备注" onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}')">${esc(it.tag)}</span>`
+          :`<button class="tag-add" title="添加标签/备注" onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}')">＋</button>`}
+          ${dispDesc?`<div class="meta">${esc(dispDesc)}</div>`:''}
           ${it.meta?`<div class="meta">${esc(it.meta)}</div>`:''}
         </div>
         <button class="cfg-edit" title="编辑标签/备注"
-          onclick="event.stopPropagation();editMeta('${d.agent.id}','${encodeURIComponent(it.id)}',this)"
-          data-tag="${encodeURIComponent(it.tag||'')}" data-note="${encodeURIComponent(it.note||'')}">✏️</button>
+          onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}')">✏️</button>
         <label class="sw"><input type="checkbox" ${it.enabled?'checked':''} ${it.toggleable?'':'disabled'}
           onclick="event.stopPropagation()"
           onchange="toggleCfg('${d.agent.id}','${encodeURIComponent(it.id)}',this.checked,this)"><i></i></label>
@@ -1048,11 +1064,11 @@ function hideTip(){
   clearTimeout(TIP_TIMER);
   document.getElementById('tip').classList.remove('show');
 }
-function editMeta(agentId, encId, btn){
+function editMeta(agentId, encId, el){
   const id = decodeURIComponent(encId);
-  const row = btn.closest('.cfg-row');
-  const tag = decodeURIComponent(btn.dataset.tag||'');
-  const note = decodeURIComponent(btn.dataset.note||'');
+  const row = el.closest('.cfg-row');
+  const tag = decodeURIComponent(row.dataset.tag||'');
+  const note = decodeURIComponent(row.dataset.note||'');
   const info = row.querySelector('.info');
   info.innerHTML = `<div class="meta-edit">
     <input id="me-tag" maxlength="18" placeholder="标签（≤6 个中文字）" value="${esc(tag)}">
