@@ -370,8 +370,9 @@
   .meta-edit { display:flex; flex-direction:column; gap:6px; flex:1; }
   .meta-edit input { background:var(--bg); border:1px solid var(--border); border-radius:6px;
                      color:var(--fg); padding:5px 9px; font-size:12.5px; }
-  .meta-edit .me-btns { display:flex; gap:6px; }
+  .meta-edit .me-btns { display:flex; gap:6px; align-items:center; }
   .meta-edit .me-btns button { font-size:12px; padding:3px 12px; }
+  .meta-edit .me-hint { margin-left:auto; font-size:11px; color:var(--dim); opacity:.75; }
 
   /* 日志面板：主题化浮动卡片 + 任务标题 + 状态徽章 */
   #logPanel { position:fixed; right:16px; bottom:16px; width:min(620px, calc(100% - 32px)); height:min(46vh, 480px);
@@ -1071,13 +1072,20 @@ function editMeta(agentId, encId, el){
   const note = decodeURIComponent(row.dataset.note||'');
   const info = row.querySelector('.info');
   info.innerHTML = `<div class="meta-edit">
-    <input id="me-tag" maxlength="18" placeholder="标签（≤6 个中文字）" value="${esc(tag)}">
-    <input id="me-note" placeholder="备注：这个配置项是做什么的…" value="${esc(note)}">
+    <input id="me-tag" maxlength="18" placeholder="标签（≤6 个中文字）" value="${esc(tag)}"
+      onkeydown="meKey(event,'${agentId}','${encId}')">
+    <input id="me-note" placeholder="备注：这个配置项是做什么的…" value="${esc(note)}"
+      onkeydown="meKey(event,'${agentId}','${encId}')">
     <div class="me-btns">
       <button class="primary" onclick="saveMeta('${agentId}','${encId}')">💾 保存</button>
       <button onclick="openConfig('${agentId}')">取消</button>
+      <span class="me-hint">回车保存 · Esc 取消</span>
     </div></div>`;
   info.querySelector('#me-tag').focus();
+}
+function meKey(e, agentId, encId){
+  if(e.key === 'Enter'){ e.preventDefault(); saveMeta(agentId, encId); }
+  else if(e.key === 'Escape'){ e.stopPropagation(); openConfig(agentId); }
 }
 async function saveMeta(agentId, encId){
   const tag = document.getElementById('me-tag').value.trim();
