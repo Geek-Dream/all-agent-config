@@ -1066,7 +1066,6 @@ function renderConfig(d, quiet){
       html += `<div class="group-empty">该工具没有此类配置</div>`;
     }
     for(const it of g.items){
-      const tipText = it.note || it.desc || '';
       const dispDesc = it.note || it.desc || '';
       const encId = encodeURIComponent(it.id);
       const tags = it.tags || [];
@@ -1074,7 +1073,6 @@ function renderConfig(d, quiet){
         `<span class="tag ${tagVariant(t)}" title="点击修改这个标签"
            onclick="event.stopPropagation();editTag(this,'${d.agent.id}','${encId}')">${esc(t)}</span>`).join('');
       html += `<div class="cfg-row ${it.enabled?'':'off'}"
-        data-tip="${encodeURIComponent(tipText)}" data-tipm="${encodeURIComponent(it.meta||'')}"
         data-tags="${encodeURIComponent(JSON.stringify(tags))}" data-note="${encodeURIComponent(it.note||'')}"
         onmouseenter="showTip(this)" onmouseleave="hideTip()">
         <span class="cfg-ico">${itemIcon(g.key,it)}</span>
@@ -1098,13 +1096,16 @@ function renderConfig(d, quiet){
 /* ---------------- 配置项：悬停详情 + 标签/备注编辑 ---------------- */
 let TIP_TIMER = null;
 function showTip(row){
-  const text = decodeURIComponent(row.dataset.tip||'');
-  const meta = decodeURIComponent(row.dataset.tipm||'');
-  if(!text && !meta) return;
   clearTimeout(TIP_TIMER);
   TIP_TIMER = setTimeout(()=>{
+    // 只有被省略号截断的行才需要浮层展示全文；放得下的不打扰
+    const parts = [];
+    row.querySelectorAll('.info .meta').forEach(m=>{
+      if(m.scrollWidth > m.clientWidth + 1) parts.push(m.textContent);
+    });
+    if(!parts.length) return;
     const tip = document.getElementById('tip');
-    tip.innerHTML = (text?`<div>${esc(text)}</div>`:'') + (meta?`<div class="t-meta">${esc(meta)}</div>`:'');
+    tip.innerHTML = parts.map((t,i)=>i?`<div class="t-meta">${esc(t)}</div>`:`<div>${esc(t)}</div>`).join('');
     const r = row.getBoundingClientRect();
     tip.style.left = Math.min(r.left, innerWidth - 400) + 'px';
     tip.style.top = Math.min(r.bottom + 6, innerHeight - 140) + 'px';
