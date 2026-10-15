@@ -132,6 +132,51 @@ def build_uninstall_argv_for_prefix(agent: dict, prefix: str) -> list[str]:
     return ["npm", "uninstall", "-g", "--prefix", prefix, npm_pkg]
 
 
+def is_script_layout(prefix: str, command: str, npm_pkg: str) -> bool:
+    """脚本安装布局判定（如 ~/.opencode：bin 与 node_modules 直接在前缀根下，
+    不是 npm 的 lib/node_modules 结构）。只认用户目录内的前缀。"""
+    p = Path(prefix)
+    try:
+        p.relative_to(Path.home())
+    except ValueError:
+        return False
+    shims = (command, f"{command}.cmd", f"{command}.exe", f"{command}.bat")
+    return (p / "node_modules" / npm_pkg).is_dir() and any((p / "bin" / f).exists() for f in shims)
+
+
+def remove_script_prefix(prefix: str, command: str, npm_pkg: str, log: list[str]) -> int:
+    """直接删除脚本安装前缀里的程序文件（npm uninstall 对这种布局会假成功）。"""
+    p = Path(prefix)
+    log.append(f"🗑 检测到脚本安装布局，直接清理 {p} 内的程序文件…\n")
+    try:
+        pkg_dir = p / "node_modules" / npm_pkg
+        if pkg_dir.is_dir():
+            shutil.rmtree(pkg_dir, ignore_errors=True)
+            log.append(f"  已删除 {pkg_dir}\n")
+        for f in (command, f"{command}.cmd", f"{command}.exe", f"{command}.bat"):
+            shim = p / "bin" / f
+            if shim.exists() or shim.is_symlink():
+                shim.unlink()
+                log.append(f"  已删除 {shim}\n")
+        for meta in ("package.json", "package-lock.json"):
+            mf = p / meta
+            if mf.is_file():
+                mf.unlink()
+        for d in (p / "bin", p / "node_modules"):
+            if d.is_dir() and not any(d.iterdir()):
+                d.rmdir()
+        if p.is_dir() and not any(p.iterdir()):
+            p.rmdir()
+            log.append(f"  目录已空，一并删除 {p}\n")
+        else:
+            log.append(f"  {p} 内还有其他文件，目录本身保留\n")
+        log.append("卸载完成。\n")
+        return 0
+    except Exception as e:  # noqa: BLE001
+        log.append(f"[error] {e}\n")
+        return 1
+
+
 ELEVATE_MARKER = "__AAC_ELEVATE__"
 
 

@@ -297,9 +297,24 @@ async def api_uninstall(agent_id: str, req: ActionReq) -> dict:
             asyncio.create_task(_run_task(tid, argv, None))
             return {"task_id": tid}
         raise HTTPException(400, "该工具暂无自动卸载方式：请按说明手动删除")
+    npm_pkg = (agent.get("sources") or {}).get("npm")
+    installs = detect.find_installs(agent["command"], agent.get("bin_paths"))
+    cand = req.prefix or (installs[0]["prefix"] if installs else None)
+    if cand and installer.is_script_layout(cand, agent["command"], npm_pkg):
+        # 脚本安装布局（如 ~/.opencode）：npm uninstall 会「假成功」，直接删程序文件
+        tid = _new_task()
+        log3: list[str] = TASKS[tid]["log"]  # type: ignore[index]
+
+        async def sjob() -> None:
+            code = await asyncio.to_thread(
+                installer.remove_script_prefix, cand, agent["command"], npm_pkg, log3)
+            TASKS[tid]["status"] = "done" if code == 0 else "failed"
+
+        asyncio.create_task(sjob())
+        return {"task_id": tid}
     if req.prefix:
         # 卸载指定位置的副本（重复安装清理）：校验该前缀确实是探测到的安装位置之一
-        known = {i["prefix"] for i in detect.find_installs(agent["command"], agent.get("bin_paths"))}
+        known = {i["prefix"] for i in installs}
         if req.prefix not in known:
             raise HTTPException(400, f"未知的安装位置: {req.prefix}")
         argv = installer.build_uninstall_argv_for_prefix(agent, req.prefix)
