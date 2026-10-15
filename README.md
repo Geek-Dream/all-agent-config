@@ -6,8 +6,17 @@ AI Agent 装机与配置迁移中心 —— 一键安装、更新、备份、迁
 
 ## 快速开始
 
+**一键启动（推荐）**：
+
 ```bash
-cd all-agent-config
+./start.sh        # macOS / Linux；首次运行自动建环境，之后秒启
+```
+
+macOS 也可以在 Finder 里**双击 `start.command`**；Windows **双击 `start.bat`**。
+
+手动方式：
+
+```bash
 python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e .
 aac                    # 启动并自动打开 http://localhost:8600
