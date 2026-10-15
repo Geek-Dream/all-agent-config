@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 from . import installer
-from .installer import IS_WINDOWS, install_prefix_of
+from .installer import IS_WINDOWS, install_prefix_of, is_kimi_runtime
 
 SEMVER_RE = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?")
 
@@ -108,6 +108,11 @@ def find_installs(command: str, bin_paths: list[str] | None = None) -> list[dict
         for d in sorted(apps_root.glob("*/bin")):
             if _has_command(d, command):
                 add(d.parent, primary=not found)
+    # Kimi 运行时目录里的副本永远排最后、不当主安装：
+    # 服务 PATH 指向那里，但用户实际用的是别处（甚至会随宿主升级被清掉）
+    found.sort(key=lambda i: is_kimi_runtime(i["prefix"]))
+    for idx, item in enumerate(found):
+        item["primary"] = idx == 0
     return found
 
 

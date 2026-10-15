@@ -14,6 +14,33 @@ from pathlib import Path
 USER_PREFIX = Path.home() / ".aac" / "npm"
 IS_WINDOWS = os.name == "nt"
 
+# Kimi 桌面运行时自带的 npm 全局目录：服务进程的 PATH 指向它，
+# 但往这里装/更新 = 把副本藏进别人家（还可能随宿主升级被清掉）。
+KIMI_RUNTIME_MARKERS = ("kimi-desktop", "Kimi.app")
+
+
+def is_kimi_runtime(prefix) -> bool:
+    s = str(prefix)
+    return any(m in s for m in KIMI_RUNTIME_MARKERS)
+
+
+def system_prefix() -> Path:
+    """系统级 npm 前缀兜底：优先机器上已有 node 环境的前缀。"""
+    if IS_WINDOWS:
+        return Path(os.environ.get("APPDATA", "")) / "npm"
+    for p in (Path("/opt/homebrew"), Path("/usr/local")):
+        if (p / "bin").is_dir():
+            return p
+    return Path("/usr/local")
+
+
+def _global_prefix_for(command: str | None) -> Path:
+    """全局安装/更新的目标前缀：跟随已装位置，但绝不写进 Kimi 运行时。"""
+    prefix = install_prefix_of(command)
+    if not prefix or is_kimi_runtime(prefix):
+        prefix = system_prefix()
+    return prefix
+
 
 def npm_prefix_writable(command: str | None = None) -> bool:
     """全局安装是否需要提权：优先看该工具 bin 目录（若已安装）是否可写。"""
@@ -60,12 +87,9 @@ def build_install_argv(agent: dict, scope: str) -> tuple[list[str], bool]:
     npm_pkg = (agent.get("sources") or {})["npm"]  # 调用方需先确认 auto_install
     if scope == "user":
         return ["npm", "install", "-g", "--prefix", str(USER_PREFIX), npm_pkg], False
-    prefix = install_prefix_of(agent.get("command"))
-    if prefix:
-        need_sudo = not prefix_writable(str(prefix))
-        return ["npm", "install", "-g", "--prefix", str(prefix), npm_pkg], need_sudo
-    need_sudo = not npm_prefix_writable(agent.get("command"))
-    return ["npm", "install", "-g", npm_pkg], need_sudo
+    prefix = _global_prefix_for(agent.get("command"))
+    need_sudo = not prefix_writable(str(prefix))
+    return ["npm", "install", "-g", "--prefix", str(prefix), npm_pkg], need_sudo
 
 
 def build_update_argv(agent: dict, scope: str) -> tuple[list[str], bool]:
@@ -73,19 +97,21 @@ def build_update_argv(agent: dict, scope: str) -> tuple[list[str], bool]:
     与页面上选的安装范围无关（scope 只影响全新安装的位置）。"""
     npm_pkg = (agent.get("sources") or {})["npm"]
     prefix = install_prefix_of(agent.get("command"))
-    if prefix:
+    if prefix and not is_kimi_runtime(prefix):
         need_sudo = not prefix_writable(str(prefix))
         return ["npm", "install", "-g", "--prefix", str(prefix), f"{npm_pkg}@latest"], need_sudo
     if scope == "user":
         return ["npm", "install", "-g", "--prefix", str(USER_PREFIX), f"{npm_pkg}@latest"], False
-    need_sudo = not npm_prefix_writable(agent.get("command"))
-    return ["npm", "install", "-g", f"{npm_pkg}@latest"], need_sudo
+    prefix = _global_prefix_for(agent.get("command"))
+    need_sudo = not prefix_writable(str(prefix))
+    return ["npm", "install", "-g", "--prefix", str(prefix), f"{npm_pkg}@latest"], need_sudo
 
 
 def build_uninstall_argv(agent: dict, scope: str) -> tuple[list[str], bool]:
     npm_pkg = (agent.get("sources") or {})["npm"]
     prefix = install_prefix_of(agent.get("command"))
     if prefix and scope != "user":
+        # 卸载跟随实际安装位置（Kimi 运行时里的副本也允许清掉——删除是安全的）
         need_sudo = not prefix_writable(str(prefix))
         return ["npm", "uninstall", "-g", "--prefix", str(prefix), npm_pkg], need_sudo
     if scope == "user":
