@@ -92,6 +92,7 @@ agents:
       custom:
         - "~/.pi/agent/statusline-pi.json"
         - "~/.pi/agent/wl-setup.json"
+        - "~/.pi/agent/pi-fusion-preferences"
         - "~/.pi/agent/themes"
         - "~/.pi/SYSTEM.md"
         - "~/.pi/APPEND_SYSTEM.md"
