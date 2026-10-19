@@ -19,10 +19,12 @@ macOS 也可以在 Finder 里**双击 `start.command`**；Windows **双击 `star
 ```bash
 python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e .
-aac                    # 启动并自动打开 http://localhost:8600
+aac                    # 启动并自动打开 http://127.0.0.1:8600
 ```
 
 开发模式：`python -m app.main`（改 `app/static/index.html` 刷新即生效，改 `.py` 需重启）
+
+开发检查：`make check`（标准库 unittest、compileall、注册表 smoke check、`git diff --check`）
 
 ## 功能
 
@@ -30,7 +32,7 @@ aac                    # 启动并自动打开 http://localhost:8600
 - 启动自动扫描本机已安装的工具（npm 全局 + PATH 检测），不会重复安装
 - 每个工具显示当前版本与最新版本（npm registry 实时查询），可更新高亮，一键更新全部
 - 安装/更新/卸载支持**用户级**（装到 `~/.aac/npm`，免密）与**全局**（系统目录需要时经 `sudo -S` 提权，密码网页输入、不存储）
-- 工具清单由 `registry/agents.yaml` 注册表驱动，加新工具只改 YAML
+- 工具清单由 `app/agents.yaml` 注册表驱动，加新工具只改 YAML
 
 ### M2 配置迁移（核心）
 - **八类配置独立导出/导入**：系统配置、Hooks 钩子、Skills 技能、MCP 服务器、主题/美化、自定义个人配置、**程序级修改（补丁）**、对话历史 —— 应用时每个分类一个滑块独立开关，一类坏了不影响其他
@@ -65,17 +67,30 @@ aac                    # 启动并自动打开 http://localhost:8600
 - **压缩包识别安装**：拖入 .zip/.tar.gz，自动解压、定位可执行文件、装入 `~/.aac/apps/`（用户级），出现在列表、可卸载
 - **独立二进制工具受管卸载**（如 Kimi Code）：只删程序文件（bin/cache/updates），配置、会话、skills 保留
 - **Windows 深度兼容**：`.cmd/.exe` shim 识别、npm 前缀布局差异、可写性判断、UAC 提权
-- **注册表扩至 19 个主流 agent**：新增 Amp / GitHub Copilot CLI / Auggie / Continue CLI / Aider(pipx) / Goose / Cursor Agent，全部附官网链接
+- **注册表扩至 20 个主流 agent**：新增 Amp / GitHub Copilot CLI / Auggie / Continue CLI / Aider(pipx) / Goose / Cursor Agent，全部附官网链接
 - **任务日志可读性**：`npm warn` 行淡化显示，真正的错误才醒目；操作失败可点黄色「重试」按钮
 
 ### M5+ 跨平台配置与会话迁移（.aac 包 format v2）
 - **路径归一化**：包内路径一律 posix 相对 home 存储，清单记录 `source_os` / `source_home`
-- **内容级路径映射**：导入时把配置与会话文件里的源机 home 绝对路径自动替换为本机（含 JSON 转义写法），Mac 打的包到 Win 直接可用
+- **跨系统目录布局映射**：注册表用 `platform_dirs` 声明同一目录在两套系统下的位置
+  （如 `~/.config/opencode` ↔ `%APPDATA%/opencode`），导入时按本机系统自动改写，
+  真正的 Mac↔Win 可用；导出时还可选「目标平台」提前按目标系统布局书写包内路径
+- **内容级路径映射**：导入时把配置与会话文件里的源机 home 与配置目录绝对路径替换为本机
+  （含 JSON 转义写法），并按目标系统规范化路径分隔符，不再出现 `C:\Users\x/dev` 混写
 - **Claude 会话目录跨机重编码**：`.claude/projects/-Users-wl-*` 按本机 home 重编码（Win 为 `C--Users-*`），同位置检出的项目换机后历史对话直接接上
 - **对话历史时间筛选**：导出时可选 全部 / 近 7 / 30 / 90 天，实时显示将打包的文件数与体积
 - **超大文件保护**：单文件 >100MB 不进包，清单记录并在导入预览中明示
 - **导入冲突预览**：逐分类三色显示 ⚠️覆盖 / ✚新增 / ⤼跳过 数量（覆盖前自动 `.bak-aac-*` 备份），跨系统与补丁版本不匹配提前警告
 - **safe-update 补丁闭环**：更新后自动重打补丁并再次比对官方包验证，日志报告「✅ N 个全部完好 / ⚠️ M 个未移植」
+
+### M5++ 供应商配置中心（对标 cc-switch 核心）
+- **多套 API 供应商**：为 Claude Code / Codex / OpenCode / Pi / OpenClaw 保存多套「地址 + 密钥 + 模型」，一键切换
+- **从 cc-switch 导入**：设置页可只读 cc-switch 的 `~/.cc-switch/cc-switch.db`，按工具分组列出其中全部供应商，勾选后合并进本机（**只读、不改动 cc-switch**；Gemini 因需写 `.env` 暂不支持）
+- **打开即自动扫描**：进入面板时列出工具配置里已定义的全部供应商（地址/密钥/模型），并高亮「使用中」的那条，老配置无需手动导入
+- **只改连接字段**：切换只替换请求地址、API Key、模型，插件、Hooks、MCP 和你自己加的设置原样保留；写回前自动备份 `.bak-aac-*`
+- **切换式 / 共存式**：Claude Code、Codex 为切换式（同时只启用一套）；OpenCode 为共存式（多套写入 `provider` 段，工具内切换）
+- **密钥安全**：密钥仅存本机 `~/.aac/providers.json`（权限 0600）；面板列表默认以占位符 `••••••••` 显示，可点 👁 查看明文、📋 一键复制（服务只监听 `127.0.0.1`），普通列表接口仍脱敏
+- **进包可选加密**：供应商配置作为独立分类进 `.aac` 包；导出时可勾选「加密导出」为整包 AES-256-GCM 加密（scrypt 派生密钥），**默认不加密**，导入时自动识别并提示输入密码
 
 ## 目录结构
 
@@ -88,13 +103,15 @@ app/
   env.py        运行环境（node/npm/pnpm/brew/scoop/winget/pipx）检测与一键安装
   categories.py 配置分类扫描 + 程序补丁检测（vs 官方包哈希比对）
   configview.py 配置详情开关面板（skills/扩展/MCP/hooks 启用状态读写）
-  bundle.py     .aac 包导出 / 预览 / 应用（跨平台路径映射、冲突统计）
+  bundle.py     .aac 包导出 / 预览 / 应用（跨平台路径映射、冲突统计、可选加密）
+  providers.py  供应商配置中心（多套 API 端点/密钥、写回配置、脱敏）
+  ccswitch.py   只读读取 cc-switch 的 SQLite 库，供选择性导入
+  crypto.py     .aac 包加密（scrypt + AES-256-GCM）
   patchwork.py  补丁快照 + 锚点式三方合并移植
   cloud.py      WebDAV 客户端（PUT/GET/PROPFIND/MKCOL）与设置存储
   backup.py     定时增量自动备份后台任务
   static/       Web 前端（单页，三主题 + 滑块式分类选择 + 设置面板）
-registry/
-  agents.yaml   19 个 Agent 工具的安装源（npm/brew/scoop/winget/pipx/manual）、
+  agents.yaml   20 个 Agent 工具的安装源（npm/brew/scoop/winget/pipx/manual）、
                 官网、配置目录、会话目录与分类定义
 ```
 
@@ -108,6 +125,7 @@ registry/
 | mcp | MCP 服务器配置（JSON 键提取） | 低 |
 | theme | 主题/美化配置 | 低 |
 | custom | 你的个人文件（CLAUDE.md、statusline、扩展等） | 低 |
+| providers | 供应商配置（API 端点与密钥，含密钥） | 无 |
 | patches | 对程序本体的修改（汉化、进度条魔改） | **高**——升级 agent 会覆盖，导入前页面会校验版本兼容性 |
 | conversations | 对话历史（体积可能较大，导出时可按时间范围筛选） | 无 |
 
@@ -116,15 +134,22 @@ registry/
 zip 容器，结构如下：
 
 ```
-manifest.json     格式版本、source_os / source_home / conv_days、各分类条目
-                  （含 rel_home posix 路径）、跳过的大文件清单、补丁哈希
+manifest.json     格式版本、source_os / source_home / path_platform / conv_days、
+                  各分类条目（含 rel_home posix 路径）、platform_dirs 快照、
+                  跳过的大文件清单、补丁哈希
 <category>/...    各分类文件（相互独立，导入时逐个开关）
+providers/...     供应商配置（多套 API 端点/密钥）
 patches/...       程序级修改文件（保持包内相对路径）
 ```
 
-导入端行为：rel_home 按本机 home 还原（Windows 自动换分隔符）；文本类文件
-（.json/.jsonl/.toml/.md 等）里的源机 home 绝对路径自动替换为本机；
-Claude 会话项目目录按本机 home 重编码；无法映射的异系统绝对路径跳过并记日志。
+加密包：导出时勾选「加密导出」并设置密码，则整个包以 scrypt 派生密钥 + AES-256-GCM 加密，
+文件头带魔术字节，导入时自动识别并提示输入密码；不勾选则导出为普通 zip（默认）。
+
+导入端行为：rel_home 按本机 home 还原（Windows 自动换分隔符）；`platform_dirs`
+声明跨系统目录（`~/.config/*` ↔ `%APPDATA%/*`）时按本机系统改写；文本类文件
+（.json/.jsonl/.toml/.md 等）里的源机 home 与配置目录绝对路径自动替换为本机，
+分隔符按目标系统规范化；Claude 会话项目目录按本机 home 重编码；无法映射的异系统
+绝对路径跳过并记日志。
 
 ## 路线图
 
@@ -133,14 +158,19 @@ Claude 会话项目目录按本机 home 重编码；无法映射的异系统绝�
 - [x] M3：safe-update 补丁保护更新（快照 → 更新 → 锚点合并自动移植）；brew 源支持
 - [x] M4：WebDAV 云同步、定时增量自动备份、Windows UAC 提权
 - [x] M5：三主题/确认弹窗/配置开关面板；npm→pipx 多管理器 + 环境自检 + 压缩包安装；
-      跨平台路径映射（Mac↔Win）、会话时间筛选、导入冲突预览、补丁闭环验证；19 个 agent
-- [ ] M6：导出包加密（含 API key 时的密码保护）；.aac 包增量压缩
+      跨平台路径映射（Mac↔Win）、会话时间筛选、导入冲突预览、补丁闭环验证；20 个 agent
+- [x] M5++：供应商配置中心（多套 API 端点/密钥、一键切换、共存/切换式、脱敏、进包加密）
+- [x] M6：导出包加密（AES-256-GCM + scrypt 密码保护）
+- [ ] M7：.aac 包增量压缩；会话阅读视图
 
 ## 安全说明
 
-- sudo 密码仅用于本次安装命令的 `sudo -S` 提权，不存储、不传输
-- 配置导出包在本地生成，不上传任何服务器
-- 导入覆盖前自动生成 `.bak-aac-*` 备份
+- sudo 密码通过本机回环 HTTP 接口提交，仅用于当前一次 `sudo -S` 提权命令；不存储、不上传
+- WebDAV 仅在用户主动点击推送/拉取时访问配置的远端；自动备份只在本机生成 `.aac` 包，凭据保存在本机 `~/.aac/settings.json`
+- 导入包内 `rel_home` 目标仅允许本机 home 内路径；程序补丁仅允许当前已识别安装目录；越界、链接和特殊归档成员会跳过或拒绝
+- 供应商密钥仅存本机 `~/.aac/providers.json`（权限 0600）；列表接口脱敏，明文只在点 👁 / 📋 时
+  按需由回环（127.0.0.1）接口返回；含密钥的 `.aac` 包可在导出时勾选「加密导出」（scrypt + AES-256-GCM），默认不加密
+- 默认服务仅监听 `127.0.0.1`。不要将端口代理或暴露到局域网；本工具未提供账户鉴权
 
 ## 相关项目
 

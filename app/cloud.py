@@ -7,18 +7,27 @@ settings 存于 ~/.aac/settings.json，密码仅存本机。
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
+import os
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from . import archive
+from .safefs import atomic_write_text, ensure_private_dir
+
 SETTINGS_FILE = Path.home() / ".aac" / "settings.json"
+SYNC_STATE_FILE = Path.home() / ".aac" / "cloud-state.json"
+MAX_DOWNLOAD_SIZE = archive.AAC_LIMITS.max_total_size
 
 DEFAULT_SETTINGS: dict = {
     "webdav": {"url": "", "username": "", "password": "", "remote_dir": "/aac"},
     "auto_backup": {"enabled": False, "interval_hours": 24, "agents": []},
+    "ccswitch": {"db": ""},
 }
 
 
@@ -43,9 +52,28 @@ def save_settings(patch: dict) -> dict:
             settings[k].update(v)
         else:
             settings[k] = v
-    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    SETTINGS_FILE.write_text(json.dumps(settings, ensure_ascii=False, indent=2))
+    atomic_write_text(
+        SETTINGS_FILE,
+        json.dumps(settings, ensure_ascii=False, indent=2),
+        mode=0o600,
+    )
     return settings
+
+
+def load_sync_state() -> dict:
+    try:
+        data = json.loads(SYNC_STATE_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_sync_state(state: dict) -> None:
+    atomic_write_text(
+        SYNC_STATE_FILE,
+        json.dumps(state, ensure_ascii=False, indent=2),
+        mode=0o600,
+    )
 
 
 class WebDAVError(Exception):
@@ -88,8 +116,8 @@ class WebDAV:
         if code not in (201, 405):
             raise WebDAVError(f"创建远程目录失败，HTTP {code}")
 
-    def list_files(self, path: str) -> dict[str, int]:
-        """返回 {文件名: 大小}（Depth:1 的非集合资源）。"""
+    def list_files(self, path: str) -> dict[str, dict]:
+        """返回远端文件元数据（大小、ETag、最后修改时间）。"""
         req_headers = dict(self.headers)
         req_headers["Depth"] = "1"
         url = self.base + "/" + path.strip("/")
@@ -103,15 +131,21 @@ class WebDAV:
             if e.code == 404:
                 return {}
             raise WebDAVError(f"列出远程文件失败，HTTP {e.code}") from e
-        files: dict[str, int] = {}
+        files: dict[str, dict] = {}
         root = ET.fromstring(body)
         for resp_el in root:
             href = resp_el.findtext(".//{DAV:}href") or resp_el.findtext(".//href") or ""
             is_collection = resp_el.find(".//{DAV:}collection") is not None
             size_txt = resp_el.findtext(".//{DAV:}getcontentlength") or "0"
+            etag = resp_el.findtext(".//{DAV:}getetag") or ""
+            modified = resp_el.findtext(".//{DAV:}getlastmodified") or ""
             name = urllib.parse.unquote(href.rstrip("/")).rsplit("/", 1)[-1]
             if name and not is_collection:
-                files[name] = int(size_txt or 0)
+                files[name] = {
+                    "size": int(size_txt or 0),
+                    "etag": etag.strip(),
+                    "modified": modified.strip(),
+                }
         return files
 
     def upload(self, local: Path, remote_dir: str, remote_name: str) -> None:
@@ -121,11 +155,66 @@ class WebDAV:
         if code not in (200, 201, 204):
             raise WebDAVError(f"上传失败，HTTP {code}")
 
-    def download(self, remote_dir: str, remote_name: str, local: Path) -> None:
-        code, body = self._req("GET", f"{remote_dir.strip('/')}/{remote_name}")
-        if code != 200:
-            raise WebDAVError(f"下载失败，HTTP {code}")
-        local.write_bytes(body)
+    def download(
+        self,
+        remote_dir: str,
+        remote_name: str,
+        local: Path,
+        max_size: int = MAX_DOWNLOAD_SIZE,
+    ) -> None:
+        if not safe_remote_name(remote_name):
+            raise WebDAVError("远端文件名不安全")
+        url = self.base + "/" + f"{remote_dir.strip('/')}/{remote_name}".lstrip("/")
+        req = urllib.request.Request(url, method="GET")  # noqa: S310
+        for key, value in self.headers.items():
+            req.add_header(key, value)
+        ensure_private_dir(local.parent)
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=f".{local.name}.", suffix=".download", dir=local.parent)
+        tmp = Path(tmp_name)
+        try:
+            try:
+                response = urllib.request.urlopen(req, timeout=self.timeout)  # noqa: S310
+            except urllib.error.HTTPError as exc:
+                raise WebDAVError(f"下载失败，HTTP {exc.code}") from exc
+            except Exception as exc:  # noqa: BLE001
+                raise WebDAVError(str(exc)) from exc
+            with response:
+                if response.status != 200:
+                    raise WebDAVError(f"下载失败，HTTP {response.status}")
+                try:
+                    content_length = int(response.headers.get("Content-Length", "0"))
+                except (TypeError, ValueError):
+                    content_length = 0
+                if content_length > max_size:
+                    raise WebDAVError(
+                        f"远端文件超过 {max_size // 1024 // 1024}MB 限制")
+                total = 0
+                with os.fdopen(fd, "wb") as fh:
+                    fd = -1
+                    while True:
+                        chunk = response.read(1 << 20)
+                        if not chunk:
+                            break
+                        total += len(chunk)
+                        if total > max_size:
+                            raise WebDAVError(
+                                f"远端文件超过 {max_size // 1024 // 1024}MB 限制")
+                        fh.write(chunk)
+                    fh.flush()
+                    os.fsync(fh.fileno())
+            from . import bundle
+            bundle.validate_aac(tmp)
+            os.replace(tmp, local)
+            try:
+                local.chmod(0o600)
+            except OSError:
+                if os.name != "nt":
+                    raise
+        finally:
+            if fd >= 0:
+                os.close(fd)
+            tmp.unlink(missing_ok=True)
 
     def delete(self, remote_dir: str, remote_name: str) -> None:
         self._req("DELETE", f"{remote_dir.strip('/')}/{remote_name}")
@@ -134,3 +223,31 @@ class WebDAV:
 def get_client() -> WebDAV:
     s = load_settings()["webdav"]
     return WebDAV(s["url"], s["username"], s["password"])
+
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def safe_remote_name(name: str) -> bool:
+    return (
+        bool(name)
+        and name.endswith(".aac")
+        and Path(name).name == name
+        and "\\" not in name
+        and ":" not in name
+        and "\0" not in name
+    )
+
+
+def remote_fingerprint(meta: dict) -> str:
+    payload = {
+        "size": int(meta.get("size", 0)),
+        "etag": str(meta.get("etag", "")),
+        "modified": str(meta.get("modified", "")),
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))

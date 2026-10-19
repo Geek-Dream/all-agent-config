@@ -1,6 +1,6 @@
 """配置分类扫描 + 程序级修改（补丁）检测。
 
-- 分类内容扫描：按 registry/agents.yaml 里每个工具的 categories 定义统计各类别文件
+- 分类内容扫描：按 agents.yaml 里每个工具的 categories 定义统计各类别文件
 - 补丁检测：对 npm 安装的工具，下载同版本官方包，逐文件比对 sha256，
   找出用户对程序本体的修改（汉化补丁、进度条魔改等）和新增文件
 """
@@ -18,9 +18,11 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
+from . import archive
+
 CATEGORY_ORDER = [
     "system", "hooks", "skills", "mcp", "theme", "custom",
-    "patches", "conversations",
+    "providers", "patches", "conversations",
 ]
 CATEGORY_LABELS = {
     "system": "系统配置",
@@ -29,6 +31,7 @@ CATEGORY_LABELS = {
     "mcp": "MCP 服务器",
     "theme": "主题 / 美化",
     "custom": "自定义个人配置",
+    "providers": "供应商配置（API 端点 / 密钥）",
     "patches": "程序级修改（补丁）",
     "conversations": "对话历史",
 }
@@ -81,7 +84,7 @@ def scan_categories(agent: dict) -> dict:
     raw = agent.get("categories") or {}
     result: dict[str, dict] = {}
     for cat in CATEGORY_ORDER:
-        if cat in ("patches", "conversations"):
+        if cat in ("patches", "providers", "conversations"):
             continue
         files: list[dict] = []
         size = 0
@@ -162,11 +165,7 @@ def _tarball_url(pkg: str, version: str) -> str | None:
 
 
 def _safe_extract(tar: tarfile.TarFile, dest: Path) -> None:
-    for m in tar.getmembers():
-        name = os.path.normpath(m.name).lstrip("/")
-        if name.startswith("..") or os.path.isabs(m.name):
-            continue
-        tar.extract(m, dest, filter="data")  # Python 3.12+ 过滤危险项
+    archive.extract_tar(tar, dest, archive.DEFAULT_LIMITS)
 
 
 def detect_patches(agent: dict) -> dict | None:

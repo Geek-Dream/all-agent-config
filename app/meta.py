@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .safefs import atomic_write_text
+
 META_FILE = Path.home() / ".aac" / "meta.json"
 MAX_TAG = 18        # 单个标签约 6 个中文字符
 MAX_TAGS = 8        # 每个条目最多 8 个标签
@@ -56,6 +58,9 @@ def set_item(agent_id: str, item_id: str,
         entry["note"] = note.strip()[:MAX_NOTE]
     if not entry.get("tags") and not entry.get("tag") and not entry.get("note"):
         data[agent_id].pop(item_id, None)
-    META_FILE.parent.mkdir(parents=True, exist_ok=True)
-    META_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_write_text(
+        META_FILE,
+        json.dumps(data, ensure_ascii=False, indent=2),
+        mode=0o600,
+    )
     return _norm_entry(entry)

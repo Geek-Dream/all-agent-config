@@ -7,7 +7,7 @@
 <style>
   /* ================= 三套主题 ================= */
   :root, [data-theme="dark"] {
-    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#30363d;
+    --bg:#0d1117; --panel:rgba(22,27,34,.8); --panel2:rgba(28,35,48,.72); --border:#30363d;
     --fg:#e6edf3; --dim:#8b949e;
     --green:#3fb950; --orange:#d29922; --gray:#6e7681; --blue:#58a6ff; --red:#f85149;
     --accent:#58a6ff; --accent-fg:#0d1117; --glow:none; --violet:#d2a8ff;
@@ -122,6 +122,36 @@
     background:linear-gradient(180deg, transparent, rgba(255,158,44,.05) 42%, rgba(255,158,44,.11) 50%, rgba(255,158,44,.05) 58%, transparent);
     animation:scanDown 9s linear infinite; }
   @keyframes scanDown { to { top:115%; } }
+
+  /* ================= 背景场景（白天：草地 / 花 / 吃草的羊；黑夜：无规律闪烁星空） ================= */
+  [data-theme="dark"] body::before {
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(900px 620px at 78% -12%, rgba(88,166,255,.10), transparent 60%),
+      radial-gradient(720px 520px at 8% 112%, rgba(210,168,255,.09), transparent 60%);
+  }
+  .scene { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+  .sky, .ground { position:absolute; inset:0; }
+  .sky { display:none; }
+  [data-theme="dark"] .sky { display:block; }
+  .star { position:absolute; background:#eaf2ff; border-radius:50%;
+    animation:twinkle var(--tw,3s) ease-in-out infinite alternate; }
+  .star.big { box-shadow:0 0 6px 1px rgba(180,215,255,.85); }
+  @keyframes twinkle { from { opacity:.1; } to { opacity:1; } }
+
+  .ground { display:none; }
+  [data-theme="light"] .ground { display:block; }
+  .blade { position:absolute; bottom:0; transform-origin:50% 100%;
+    border-radius:60% 60% 0 0 / 100% 100% 0 0;
+    background:linear-gradient(to top, var(--g1,#4e9138), var(--g2,#8fce63));
+    animation:sway var(--sw,3.4s) ease-in-out infinite alternate; }
+  @keyframes sway { from { transform:rotate(calc(var(--r,0deg) - 4deg)); }
+                    to   { transform:rotate(calc(var(--r,0deg) + 4deg)); } }
+  .flower { position:absolute; bottom:0; transform-origin:50% 100%;
+    animation:sway var(--sw,3.8s) ease-in-out infinite alternate; }
+  .sheep { position:absolute; bottom:0; filter:drop-shadow(0 4px 7px rgba(31,41,55,.14)); }
+  .sheep .head { transform-origin:38px 60px; animation:graze 3.2s ease-in-out infinite; }
+  @keyframes graze { 0%,100% { transform:rotate(0deg); } 35% { transform:rotate(14deg); } 58% { transform:rotate(10deg); } }
 
   header { padding:20px 28px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px;
            flex-wrap:wrap; position:relative; z-index:1; animation:fadeDown .5s ease both; }
@@ -315,6 +345,39 @@
   .warn { background:rgba(210,153,34,.12); border:1px solid rgba(210,153,34,.4); color:var(--orange);
           border-radius:8px; padding:8px 12px; margin-bottom:10px; font-size:13px; }
 
+  /* ================= 从 cc-switch 导入 ================= */
+  .cc-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:2px 0 10px; }
+  .cc-toolbar .cc-count { color:var(--dim); font-size:12.5px; }
+  .cc-toolbar .spacer { flex:1; }
+  .cc-toolbar button { padding:4px 12px; font-size:12.5px; }
+  .cc-group { border:1px solid var(--border); border-radius:10px; overflow:hidden;
+              margin-bottom:10px; background:var(--panel2); animation:fadeUp .35s ease both; }
+  .cc-group-head { display:flex; align-items:center; gap:9px; padding:8px 12px; font-size:13px;
+                   background:color-mix(in srgb, var(--accent) 9%, transparent);
+                   border-bottom:1px solid var(--border); }
+  .cc-group-head b { font-size:13.5px; }
+  .cc-group-head .cc-app { color:var(--dim); font-size:11px; font-family:ui-monospace,Menlo,monospace;
+                           background:var(--bg); border:1px solid var(--border); border-radius:5px; padding:0 6px; }
+  .cc-group-head .cc-n { color:var(--dim); font-size:12px; }
+  .cc-group-head .spacer { flex:1; }
+  .cc-group-head button { padding:2px 9px; font-size:11.5px; }
+  .cc-item { display:flex; align-items:center; gap:11px; padding:9px 12px; cursor:pointer;
+             border-bottom:1px solid var(--border); transition:background-color .15s ease; }
+  .cc-item:last-child { border-bottom:none; }
+  .cc-item:hover { background:color-mix(in srgb, var(--accent) 6%, transparent); }
+  .cc-item input { flex:none; width:15px; height:15px; margin:0; accent-color:var(--accent); cursor:pointer; }
+  .cc-item .cc-main { flex:1; min-width:0; }
+  .cc-name { display:flex; align-items:center; gap:8px; font-weight:600; font-size:13px;
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cc-meta { display:flex; align-items:center; gap:8px; margin-top:3px; min-width:0; }
+  .cc-url { color:var(--dim); font-size:12px; font-family:ui-monospace,Menlo,monospace;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:320px; }
+  .cc-model { flex:none; color:var(--violet); font-size:11px; border:1px solid var(--border);
+              border-radius:999px; padding:0 8px; white-space:nowrap; }
+  .cc-note { flex:none; color:var(--dim); font-size:11px; }
+  .cc-item.off { opacity:.5; }
+  .cc-item.off input { cursor:not-allowed; }
+
   /* ================= 配置详情 ================= */
   .cfg-summary { display:flex; align-items:center; gap:6px; margin:2px 2px 14px;
                  color:var(--dim); font-size:12.5px; }
@@ -427,6 +490,7 @@
   #logStatus.run { color:var(--orange); background:color-mix(in srgb, var(--orange) 13%, transparent); }
   #logStatus.run::before { content:"●"; margin-right:5px; animation:caret 1.1s ease infinite; }
   #logStatus.done { color:var(--green); background:color-mix(in srgb, var(--green) 13%, transparent); }
+  #logStatus.partial { color:var(--orange); background:color-mix(in srgb, var(--orange) 13%, transparent); }
   #logStatus.fail { color:var(--red); background:color-mix(in srgb, var(--red) 13%, transparent); }
   #log { flex:1; overflow:auto; margin:8px; padding:10px 12px; border-radius:8px;
          background:var(--log-bg); font:12px/1.6 ui-monospace,Menlo,monospace;
@@ -449,22 +513,49 @@
   @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
   @keyframes rowIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
 
-  /* 主题切换时的一次性闪光过渡：先盖住新主题底色再淡出，杜绝半黑半白的中间态 */
-  body.theme-flash::after {
-    content:""; position:fixed; inset:0; z-index:999; pointer-events:none;
-    background:radial-gradient(circle at top right,
-      color-mix(in srgb, var(--accent) 14%, var(--bg)), var(--bg) 62%);
-    animation:flash .55s ease forwards;
+  /* 主题切换：从点击处（右上角）向外扩散的圆形揭幕（View Transitions API）
+     用纯 CSS keyframes 驱动伪元素，兼容性比 JS 的 animate(pseudoElement) 更好 */
+  ::view-transition-old(root) { animation:none; mix-blend-mode:normal; z-index:1; }
+  ::view-transition-new(root) { mix-blend-mode:normal; z-index:2;
+    animation:vt-reveal .8s cubic-bezier(.22,.61,.36,1) both; }
+  @keyframes vt-reveal {
+    from { clip-path:circle(0px at var(--vt-x,100%) var(--vt-y,0px)); }
+    to   { clip-path:circle(var(--vt-r,150vmax) at var(--vt-x,100%) var(--vt-y,0px)); }
   }
-  @keyframes flash { from { opacity:1; } to { opacity:0; } }
+  /* 揭幕期间：暂停各主题的重背景动画、关闭逐元素配色过渡，避免掉帧 */
+  html:active-view-transition *,
+  html:active-view-transition *::before,
+  html:active-view-transition *::after {
+    animation-play-state:paused !important;
+    transition:none !important;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
   }
+
+  .pf-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .pf-grid label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--dim); }
+  .pf-keyrow { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:12px; color:var(--dim); }
+  .pf-keyrow code { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; color:var(--fg); background:var(--panel2); border:1px solid var(--border);
+    border-radius:5px; padding:4px 8px; font-size:12px; user-select:text; }
+  .pf-models { display:flex; gap:6px; align-items:stretch; }
+  .pf-models select { flex:none; max-width:42%; }
+  .pf-models button { white-space:nowrap; }
+  .iconbtn { display:inline-flex; align-items:center; justify-content:center; padding:3px 6px;
+    color:var(--dim); background:transparent; border:1px solid var(--border); border-radius:5px; cursor:pointer; }
+  .iconbtn:hover { color:var(--accent); border-color:var(--accent); }
+  .pf-grid input, .pf-grid select {
+    background:var(--bg); border:1px solid var(--border); border-radius:6px;
+    color:var(--fg); padding:6px 8px; font-size:13px; font-family:inherit;
+  }
+  .pf-grid input:focus, .pf-grid select:focus { outline:none; border-color:var(--accent); }
 </style>
 </head>
 <body>
 <div class="fx"><i class="meteor m1"></i><i class="meteor m2"></i><i class="meteor m3"></i><i class="meteor m4"></i><i class="meteor m5"></i><i class="scanline"></i></div>
+<div class="scene" id="scene" aria-hidden="true"><div class="sky" id="sky"></div><div class="ground" id="ground"></div></div>
 <header>
   <h1><span class="gear">⚙️</span> All Agent Config</h1>
   <span class="sub">AI Agent 装机与配置迁移中心 · M2（检测 / 安装 / 更新 / 配置导出导入）</span>
@@ -510,6 +601,19 @@
   <div class="modal modal-lg">
     <header><h2 id="configTitle">🧩 配置详情</h2><button onclick="closeModal('configMask')">✕</button></header>
     <div class="body" id="configBody"></div>
+  </div>
+</div>
+
+<!-- 供应商配置模态框 -->
+<div class="modal-mask" id="providerMask">
+  <div class="modal modal-lg">
+    <header><h2 id="providerTitle">🔌 供应商配置</h2><button onclick="closeModal('providerMask')">✕</button></header>
+    <div class="body" id="providerBody"></div>
+    <footer>
+      <button onclick="closeModal('providerMask')">关闭</button>
+      <button onclick="providerImport()">🔄 重新扫描</button>
+      <button class="primary" onclick="providerNew()">➕ 新增供应商</button>
+    </footer>
   </div>
 </div>
 
@@ -659,6 +763,12 @@
       </div>
       <div id="ab_agents" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px"></div>
       <button onclick="saveSettings();act('backup-now')">📤 立即备份一轮</button>
+      <div style="font-size:14px;margin:16px 0 6px"><b>🔁 从 cc-switch 导入</b>（只读 cc-switch 数据库，选择性导入供应商）</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <input type="text" id="cc_db" placeholder="~/.cc-switch/cc-switch.db" style="flex:1;min-width:220px">
+        <button onclick="ccScan()">🔍 扫描</button>
+      </div>
+      <div id="cc_result"></div>
       <div id="settingsMsg" style="color:var(--dim);font-size:12px;margin-top:10px"></div>
     </div>
   </div>
@@ -698,24 +808,33 @@ function moveIndicator(){
   ind.style.left = on.offsetLeft + 'px';
   ind.style.width = on.offsetWidth + 'px';
 }
-function applyTheme(name, flash){
-  document.documentElement.setAttribute('data-theme', name);
-  localStorage.setItem('aac-theme', name);
-  themeSwitch.querySelectorAll('button').forEach(b=>
-    b.classList.toggle('on', b.dataset.t===name));
-  moveIndicator();
-  if(flash){
-    document.body.classList.remove('theme-flash');
-    void document.body.offsetWidth; // 重新触发动画
-    document.body.classList.add('theme-flash');
-  }
+function applyTheme(name, origin){
+  const set = () => {
+    document.documentElement.setAttribute('data-theme', name);
+    localStorage.setItem('aac-theme', name);
+    themeSwitch.querySelectorAll('button').forEach(b=>
+      b.classList.toggle('on', b.dataset.t===name));
+    moveIndicator();
+  };
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!origin || !document.startViewTransition || reduced){ set(); return; }
+  const {x, y} = origin;
+  const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  const s = document.documentElement.style;
+  s.setProperty('--vt-x', x + 'px');
+  s.setProperty('--vt-y', y + 'px');
+  s.setProperty('--vt-r', radius + 'px');
+  document.startViewTransition(set);
 }
 themeSwitch.querySelectorAll('button').forEach(b=>
-  b.addEventListener('click', ()=>applyTheme(b.dataset.t, true)));
+  b.addEventListener('click', ()=>{
+    const r = b.getBoundingClientRect();
+    applyTheme(b.dataset.t, {x:r.left + r.width/2, y:r.top + r.height/2});
+  }));
 window.addEventListener('resize', moveIndicator);
 const _urlTheme = new URLSearchParams(location.search).get('theme');
 applyTheme(['light','dark','tech'].includes(_urlTheme) ? _urlTheme
-  : (localStorage.getItem('aac-theme') || 'dark'), false);
+  : (localStorage.getItem('aac-theme') || 'dark'), null);
 if(new URLSearchParams(location.search).has('noanim')){
   const st = document.createElement('style');
   st.textContent = '*{animation:none!important;transition:none!important}';
@@ -723,13 +842,81 @@ if(new URLSearchParams(location.search).has('noanim')){
 }
 requestAnimationFrame(moveIndicator); // 字体加载后校正一次
 
+/* ---------------- 背景场景（白天：草地 / 花 / 吃草的羊；黑夜：无规律闪烁星空） ---------------- */
+(function buildScene(){
+  const sky = document.getElementById('sky');
+  const ground = document.getElementById('ground');
+  if(!sky || !ground) return;
+
+  let s = '';
+  for(let i=0;i<130;i++){
+    const sz = (Math.random()*2.1+0.9).toFixed(2);
+    const big = Math.random() < 0.16 ? ' big' : '';
+    s += `<i class="star${big}" style="width:${sz}px;height:${sz}px;`
+       + `left:${(Math.random()*100).toFixed(2)}%;top:${(Math.random()*100).toFixed(2)}%;`
+       + `--tw:${(1.4+Math.random()*3).toFixed(2)}s;`
+       + `animation-delay:-${(Math.random()*5).toFixed(2)}s;`
+       + `opacity:${(0.45+Math.random()*0.55).toFixed(2)}"></i>`;
+  }
+  sky.innerHTML = s;
+
+  const FLOWER = '<line x1="20" y1="60" x2="20" y2="26" stroke="#4e9138" stroke-width="2.4" stroke-linecap="round"/>'
+    + '<g fill="var(--pe,#ffd54a)"><circle cx="20" cy="12" r="6.2"/><circle cx="28" cy="19" r="6.2"/>'
+    + '<circle cx="25" cy="28" r="6.2"/><circle cx="15" cy="28" r="6.2"/><circle cx="12" cy="19" r="6.2"/></g>'
+    + '<circle cx="20" cy="20" r="4" fill="#f2a11e"/>';
+  const SHEEP = ['<g stroke="#5b5b6b" stroke-width="4" stroke-linecap="round">',
+      '<line x1="45" y1="66" x2="45" y2="86"/><line x1="62" y1="66" x2="62" y2="88"/>',
+      '<line x1="88" y1="66" x2="88" y2="88"/><line x1="103" y1="66" x2="103" y2="86"/></g>',
+      '<g fill="#f7f7fb" stroke="#c9ccd8" stroke-width="2">',
+      '<circle cx="52" cy="52" r="18"/><circle cx="72" cy="44" r="20"/>',
+      '<circle cx="94" cy="52" r="18"/><circle cx="72" cy="60" r="18"/></g>',
+      '<g class="head"><ellipse cx="34" cy="50" rx="13" ry="15" fill="#3b3f52"/>',
+      '<ellipse cx="45" cy="38" rx="7" ry="4" fill="#3b3f52" transform="rotate(-25 45 38)"/>',
+      '<circle cx="28" cy="52" r="2.4" fill="#fff"/></g>',
+      '<ellipse cx="30" cy="44" rx="8" ry="6.5" fill="#f7f7fb"/>'].join('');
+
+  let g = '';
+  const sheep = [['left:0.8%','88px','63px'],['right:1%','80px','57px']];
+  for(const [pos,w,h] of sheep){
+    g += `<svg class="sheep" style="${pos}" width="${w}" height="${h}" `
+       + `viewBox="0 0 140 100" aria-hidden="true">${SHEEP}</svg>`;
+  }
+  const greens = [['#4e9138','#8fce63'],['#3f812f','#79bd55'],['#5aa03f','#a3da78']];
+  for(let i=0;i<80;i++){
+    const c = greens[Math.floor(Math.random()*greens.length)];
+    g += `<i class="blade" style="left:${(Math.random()*100).toFixed(2)}%;`
+       + `height:${(16+Math.random()*54).toFixed(0)}px;width:${(2+Math.random()*2.6).toFixed(1)}px;`
+       + `--r:${(-14+Math.random()*28).toFixed(1)}deg;--sw:${(2.6+Math.random()*2).toFixed(2)}s;`
+       + `--g1:${c[0]};--g2:${c[1]};animation-delay:-${(Math.random()*4).toFixed(2)}s"></i>`;
+  }
+  const petals = ['#ffd54a','#ff8fb1','#ffffff','#c4a7ff','#ffb37a'];
+  for(let i=0;i<10;i++){
+    const sc = 0.7+Math.random()*0.7;
+    g += `<svg class="flower" style="left:${(Math.random()*100).toFixed(2)}%;`
+       + `--pe:${petals[Math.floor(Math.random()*petals.length)]};--sw:${(3+Math.random()*2).toFixed(2)}s" `
+       + `width="${(22*sc).toFixed(0)}" height="${(34*sc).toFixed(0)}" viewBox="0 0 40 60" aria-hidden="true">`
+       + `${FLOWER}</svg>`;
+  }
+  ground.innerHTML = g;
+})();
+
 const LABELS = {system:'系统配置',hooks:'Hooks 钩子',skills:'Skills 技能',mcp:'MCP 服务器',
-  theme:'主题 / 美化',custom:'自定义个人配置',patches:'程序级修改（补丁）',conversations:'对话历史'};
-const ORDER = ['system','hooks','skills','mcp','theme','custom','patches','conversations'];
+  theme:'主题 / 美化',custom:'自定义个人配置',providers:'供应商配置（API 端点 / 密钥）',
+  patches:'程序级修改（补丁）',conversations:'对话历史'};
+const ORDER = ['system','hooks','skills','mcp','theme','custom','providers','patches','conversations'];
 let TOOLS = [], EXPORT_STATE = null, IMPORT_STATE = null;
 let BUSY = {}, FAILED = {};   // agentId -> 进行中 / 失败的操作（install|update|uninstall）
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function jsArg(s){ return esc(JSON.stringify(String(s))); }
+function apiFetch(url, options){
+  const opts = Object.assign({}, options || {});
+  const method = String(opts.method || 'GET').toUpperCase();
+  if(method !== 'GET' && method !== 'HEAD'){
+    opts.headers = Object.assign({}, opts.headers || {}, {'X-AAC-Request':'1'});
+  }
+  return fetch(url, opts);
+}
 function tagVariant(t){ let h=0; for(const c of String(t)) h=(h*31+c.charCodeAt(0))>>>0; return 'v'+(h%4); }
 function fmtSize(n){ if(!n) return '0 B'; const u=['B','KB','MB','GB']; let i=0;
   while(n>=1024 && i<u.length-1){ n/=1024; i++; } return n.toFixed(n>=10||i===0?0:1)+' '+u[i]; }
@@ -752,7 +939,7 @@ function askConfirm(action, fn, toolName, extra){
   const m = CONFIRM_META[action];
   document.getElementById('confirmTitle').textContent = `${m.icon} 确认${m.name}`;
   document.getElementById('confirmBody').innerHTML =
-    `确定要${m.name} <b>${toolName||''}</b> 吗？` +
+    `确定要${m.name} <b>${esc(toolName||'')}</b> 吗？` +
     (action==='uninstall'
       ? '<div style="color:var(--orange);font-size:13px;margin-top:8px">⚠️ 卸载会删除程序文件（配置与会话默认保留），此操作不可撤销。</div>'
       : '') + (extra||'');
@@ -798,7 +985,10 @@ document.getElementById('sudoPwdInput').addEventListener('keydown', e=>{
 });
 function toast(msg){
   const t=document.getElementById('toast');
-  t.innerHTML = msg + '<span class="bar"></span>';
+  t.textContent = String(msg);
+  const bar=document.createElement('span');
+  bar.className='bar';
+  t.appendChild(bar);
   t.classList.add('show'); clearTimeout(t._timer);
   t._timer=setTimeout(()=>t.classList.remove('show'),3000);
 }
@@ -807,7 +997,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 /* ---------------- 全局弹窗快捷键：Esc 关闭 · 回车确认 ---------------- */
 document.addEventListener('keydown', e=>{
   // 数组顺序 = 叠放顺序，越靠后越顶层（sudo/确认弹窗可能叠在配置详情之上）
-  const MASKS = ['configMask','exportMask','importMask','envMask','archiveMask',
+  const MASKS = ['configMask','providerMask','exportMask','importMask','envMask','archiveMask',
                  'settingsMask','updateMask','confirmMask','sudoMask'];
   const openMasks = MASKS.map(id=>document.getElementById(id))
                          .filter(m=>m && m.classList.contains('open'));
@@ -894,6 +1084,8 @@ function renderTools(){
   }
   document.getElementById('rows').innerHTML = rows.map((t,i)=>{
     const updatable = !!t.updatable;
+    const currentVersion = t._install?.current_version || t.current_version;
+    const latestVersion = t.latest_version;
     const badge = !t.installed ? '<span class="badge b-no">未安装</span>'
       : updatable && t._primary ? '<span class="badge b-up">可更新</span>'
       : '<span class="badge b-ok">已安装</span>';
@@ -902,51 +1094,54 @@ function renderTools(){
     const busyAction = BUSY[rowId];
     const failedAction = FAILED[rowId];
     const busyLabel = {install:'安装中', update:'更新中', uninstall:'卸载中'}[busyAction];
+    const idArg = jsArg(t.id);
+    const prefixArg = jsArg(t._install?.prefix || '');
     if(busyAction){
       acts.push(`<button class="loading" disabled>${busyLabel}</button>`);
     } else if(t.auto_install){
       const fromArchive = (t.install_prefix||'').includes('/.aac/apps/');
       if(!t.installed){
         acts.push(failedAction==='install'
-          ? `<button class="retry" onclick="act('install','${t.id}')">🔁 重试安装</button>`
-          : `<button onclick="act('install','${t.id}')">安装</button>`);
+          ? `<button class="retry" onclick="act('install',${idArg})">🔁 重试安装</button>`
+          : `<button onclick="act('install',${idArg})">安装</button>`);
       } else if(t._primary){
         if(updatable && !fromArchive){
           acts.push(failedAction==='update'
-            ? `<button class="retry" onclick="checkUpdate('${t.id}')">🔁 重试更新</button>`
-            : `<button class="upd" onclick="checkUpdate('${t.id}')">更新</button>`);
+            ? `<button class="retry" onclick="checkUpdate(${idArg})">🔁 重试更新</button>`
+            : `<button class="upd" onclick="checkUpdate(${idArg})">更新</button>`);
         }
         acts.push(failedAction==='uninstall'
-          ? `<button class="retry" onclick="act('uninstall','${t.id}','${t._install.prefix}')">🔁 重试卸载</button>`
-          : `<button class="danger" onclick="act('uninstall','${t.id}','${t._install.prefix}')">卸载</button>`);
+          ? `<button class="retry" onclick="act('uninstall',${idArg},${prefixArg})">🔁 重试卸载</button>`
+          : `<button class="danger" onclick="act('uninstall',${idArg},${prefixArg})">卸载</button>`);
       } else {
         // 重复安装的未使用副本：只提供卸载
         acts.push(failedAction==='uninstall'
-          ? `<button class="retry" onclick="act('uninstall','${t.id}','${t._install.prefix}')">🔁 重试卸载</button>`
-          : `<button class="danger" onclick="act('uninstall','${t.id}','${t._install.prefix}')">🗑 卸载此副本</button>`);
+          ? `<button class="retry" onclick="act('uninstall',${idArg},${prefixArg})">🔁 重试卸载</button>`
+          : `<button class="danger" onclick="act('uninstall',${idArg},${prefixArg})">🗑 卸载此副本</button>`);
       }
     } else if(t.installed && t._primary && t.managed){
       // 独立二进制工具（如 Kimi Code）：内置自动更新，这里只提供受管卸载
       acts.push(failedAction==='uninstall'
-        ? `<button class="retry" onclick="act('uninstall','${t.id}','${t._install.prefix}')">🔁 重试卸载</button>`
-        : `<button class="danger" onclick="act('uninstall','${t.id}','${t._install.prefix}')">卸载</button>`);
+        ? `<button class="retry" onclick="act('uninstall',${idArg},${prefixArg})">🔁 重试卸载</button>`
+        : `<button class="danger" onclick="act('uninstall',${idArg},${prefixArg})">卸载</button>`);
     } else if(!t.installed) {
       acts.push(t.homepage
-        ? `<button onclick="window.open('${t.homepage}','_blank')">🌐 访问官网</button>`
+        ? `<button onclick="window.open(${jsArg(t.homepage)},'_blank')">🌐 访问官网</button>`
         : '<span class="badge b-na">手动安装</span>');
     }
     if(t.installed && t._primary){
-      acts.push(`<button onclick="openConfig('${t.id}')">🧩 配置详情</button>`);
-      acts.push(`<button onclick="openExport('${t.id}')">📦 导出配置</button>`);
+      if(t.provider_supported) acts.push(`<button onclick="openProviders(${idArg})">🔌 供应商</button>`);
+      acts.push(`<button onclick="openConfig(${idArg})">🧩 配置详情</button>`);
+      acts.push(`<button onclick="openExport(${idArg})">📦 导出配置</button>`);
     }
     return `<tr style="animation-delay:${Math.min(i*45, 500)}ms"${t._primary?'':' class="dup-row"'}>
-      <td><strong${t._primary?'':' style="opacity:.6"'}>${t._primary?'':'├─ '}${t.name}</strong><div class="sub" style="color:var(--dim);font-size:12px">${t.vendor}</div></td>
+      <td><strong${t._primary?'':' style="opacity:.6"'}>${t._primary?'':'├─ '}${esc(t.name)}</strong><div class="sub" style="color:var(--dim);font-size:12px">${esc(t.vendor)}</div></td>
       <td>${badge}</td>
-      <td class="ver">${t.current_version||'—'}</td>
-      <td class="ver">${t.latest_version||'—'}</td>
+      <td class="ver">${esc(currentVersion||'—')}</td>
+      <td class="ver">${esc(latestVersion||'—')}</td>
       <td>${methodCellRow(t)}</td>
       <td><div class="acts">${acts.join('')}</div></td>
-      <td class="notes">${t.notes||''}${!t.auto_install&&t.install_hint?'<br>💡 '+t.install_hint:''}</td>
+      <td class="notes">${esc(t.notes||'')}${!t.auto_install&&t.install_hint?'<br>💡 '+esc(t.install_hint):''}</td>
     </tr>`;
   }).join('');
 }
@@ -956,7 +1151,7 @@ async function loadTools(){
   scanBtn.classList.add('loading');
   document.getElementById('rows').innerHTML = skeletonRows();
   try {
-    TOOLS = await (await fetch('/api/tools')).json();
+    TOOLS = await (await apiFetch('/api/tools')).json();
   } finally {
     scanBtn.classList.remove('loading');
   }
@@ -1000,7 +1195,7 @@ async function act(action, id, prefix, skipConfirm){
   if(needSudo && !SUDO_PWD){ openSudo(action, id, prefix); return; }
   const body=JSON.stringify({scope:scope(), sudo_password:sudoPwd(), prefix: prefix||null});
   const url=id?`/api/${action}/${id}`:`/api/${action}`;
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body});
+  const r=await apiFetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body});
   if(r.status===400){
     const d = await r.json();
     if(/sudo|密码/.test(d.detail||'')){ openSudo(action, id, prefix); return; }
@@ -1033,8 +1228,10 @@ async function updateAll(){
     const skipped = [];
     for(const t of targets){
       // 与单个「更新」一致：先查程序修改，有补丁的工具不批量动，留给用户单独处理
-      const d = await (await fetch(`/api/agents/${t.id}/detail`)).json();
-      const mods = (d.patches?.modified||[]).length + (d.patches?.added||[]).length;
+      const d = await (await apiFetch(`/api/agents/${t.id}/detail`)).json();
+      const p = d.patches || {};
+      if(p.error){ skipped.push(`${t.name}（补丁检测失败）`); continue; }
+      const mods = (p.modified||[]).length + (p.added||[]).length;
       if(mods){ skipped.push(t.name); continue; }
       await act('update', t.id, null, true);
     }
@@ -1058,7 +1255,7 @@ async function openConfig(id){
   body.innerHTML = Array.from({length:6},(_,i)=>
     `<div class="skel" style="height:14px;margin:14px 4px;width:${85-i*8}%"></div>`).join('');
   document.getElementById('configMask').classList.add('open');
-  const d = await (await fetch(`/api/agents/${id}/config`)).json();
+  const d = await (await apiFetch(`/api/agents/${id}/config`)).json();
   renderConfig(d);
 }
 
@@ -1067,14 +1264,15 @@ async function refreshConfig(id){
   const body = document.getElementById('configBody');
   const st = body.scrollTop;
   const collapsed = [...body.querySelectorAll('.group')].map(g=>g.classList.contains('collapsed'));
-  const d = await (await fetch(`/api/agents/${id}/config`)).json();
+  const d = await (await apiFetch(`/api/agents/${id}/config`)).json();
   renderConfig(d, true);
   [...body.querySelectorAll('.group')].forEach((g,i)=>{ if(collapsed[i]) g.classList.add('collapsed'); });
   body.scrollTop = st;
 }
 
-const G_ICONS = {skills:'🧩', ext:'🧰', mcp:'🔌', hooks:'🪝', files:'📄'};
+const G_ICONS = {runtime:'⚙️', skills:'🧩', ext:'🧰', mcp:'🔌', hooks:'🪝', files:'📄'};
 function itemIcon(gkey, it){
+  if(gkey==='runtime') return '⚙️';
   if(gkey==='mcp') return '🔌';
   if(gkey==='hooks') return '🪝';
   return (it.meta||'').startsWith('目录') ? '📁' : '📄';
@@ -1098,24 +1296,26 @@ function renderConfig(d, quiet){
     for(const it of g.items){
       const dispDesc = it.note || it.desc || '';
       const encId = encodeURIComponent(it.id);
+      const agentArg = jsArg(d.agent.id);
+      const itemArg = jsArg(encId);
       const tags = it.tags || [];
       const chips = tags.map(t=>
         `<span class="tag ${tagVariant(t)}" title="点击修改这个标签"
-           onclick="event.stopPropagation();editTag(this,'${d.agent.id}','${encId}')">${esc(t)}</span>`).join('');
+           onclick="event.stopPropagation();editTag(this,${agentArg},${itemArg})">${esc(t)}</span>`).join('');
       html += `<div class="cfg-row ${it.enabled?'':'off'}"
         data-tags="${encodeURIComponent(JSON.stringify(tags))}" data-note="${encodeURIComponent(it.note||'')}"
         onmouseenter="showTip(this)" onmouseleave="hideTip()">
         <span class="cfg-ico">${itemIcon(g.key,it)}</span>
         <div class="info"><b>${esc(it.name)}</b><span class="tags">${chips}<button class="tag-add" title="添加标签"
-           onclick="event.stopPropagation();addTag(this,'${d.agent.id}','${encId}')">＋</button></span>
+           onclick="event.stopPropagation();addTag(this,${agentArg},${itemArg})">＋</button></span>
           ${dispDesc?`<div class="meta">${esc(dispDesc)}</div>`:''}
           ${it.meta?`<div class="meta">${esc(it.meta)}</div>`:''}
         </div>
         <button class="cfg-edit" title="编辑备注"
-          onclick="event.stopPropagation();editMeta('${d.agent.id}','${encId}',this)">✏️</button>
+          onclick="event.stopPropagation();editMeta(${agentArg},${itemArg},this)">✏️</button>
         <label class="sw"><input type="checkbox" ${it.enabled?'checked':''} ${it.toggleable?'':'disabled'}
           onclick="event.stopPropagation()"
-          onchange="toggleCfg('${d.agent.id}','${encodeURIComponent(it.id)}',this.checked,this)"><i></i></label>
+          onchange="toggleCfg(${agentArg},${itemArg},this.checked,this)"><i></i></label>
       </div>`;
     }
     html += '</div></div></div>';
@@ -1150,7 +1350,7 @@ function rowTags(row){
   try { return JSON.parse(decodeURIComponent(row.dataset.tags||'[]')); } catch(e){ return []; }
 }
 async function saveTags(agentId, encId, tags){
-  await fetch(`/api/agents/${agentId}/meta`, {method:'POST',
+  await apiFetch(`/api/agents/${agentId}/meta`, {method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({item_id:decodeURIComponent(encId), tags})});
   refreshConfig(agentId);
@@ -1200,12 +1400,14 @@ function editMeta(agentId, encId, el){
   const row = el.closest('.cfg-row');
   const note = decodeURIComponent(row.dataset.note||'');
   const info = row.querySelector('.info');
+  const agentArg = jsArg(agentId);
+  const itemArg = jsArg(encId);
   info.innerHTML = `<div class="meta-edit">
     <input id="me-note" placeholder="备注：这个配置项是做什么的…" value="${esc(note)}"
-      onkeydown="meKey(event,'${agentId}','${encId}')">
+      onkeydown="meKey(event,${agentArg},${itemArg})">
     <div class="me-btns">
-      <button class="primary" onclick="saveMeta('${agentId}','${encId}')">💾 保存备注</button>
-      <button onclick="refreshConfig('${agentId}')">取消</button>
+      <button class="primary" onclick="saveMeta(${agentArg},${itemArg})">💾 保存备注</button>
+      <button onclick="refreshConfig(${agentArg})">取消</button>
       <span class="me-hint">回车保存 · Esc 取消 · 标签点标签本身改</span>
     </div></div>`;
   info.querySelector('#me-note').focus();
@@ -1216,7 +1418,7 @@ function meKey(e, agentId, encId){
 }
 async function saveMeta(agentId, encId){
   const note = document.getElementById('me-note').value.trim();
-  await fetch(`/api/agents/${agentId}/meta`, {method:'POST',
+  await apiFetch(`/api/agents/${agentId}/meta`, {method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({item_id:decodeURIComponent(encId), note})});
   toast('✅ 已保存备注');
@@ -1227,7 +1429,7 @@ async function toggleCfg(agentId, encId, enabled, input){
   const id = decodeURIComponent(encId);
   let d = {};
   try {
-    const r = await fetch(`/api/agents/${agentId}/toggle`, {method:'POST',
+    const r = await apiFetch(`/api/agents/${agentId}/toggle`, {method:'POST',
       headers:{'Content-Type':'application/json'}, body: JSON.stringify({item_id:id, enabled})});
     d = await r.json();
     if(r.status!==200){ throw new Error(d.detail || '切换失败'); }
@@ -1240,13 +1442,235 @@ async function toggleCfg(agentId, encId, enabled, input){
   toast((enabled?'✅ ':'⏸️ ') + (d.msg || '已切换'));
 }
 
+/* ---------------- 供应商配置 ---------------- */
+let PROVIDER_STATE = null;
+let KEY_CACHE = {};   /* providerId -> 明文密钥（仅本页内存，刷新即清） */
+const ICON_EYE = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3.2"/></svg>';
+const ICON_COPY = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="5.5" width="10" height="15" rx="2"/><path d="M9 5.5V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5"/><path d="M10 10h4M10 13.5h4M10 17h2.5"/></svg>';
+
+async function openProviders(id){
+  const agent = TOOLS.find(t=>t.id===id);
+  document.getElementById('providerTitle').textContent = `🔌 供应商配置 —— ${agent.name}`;
+  document.getElementById('providerBody').innerHTML = '<div style="color:var(--dim)">加载中…</div>';
+  document.getElementById('providerMask').classList.add('open');
+  const d = await (await apiFetch(`/api/agents/${id}/providers`)).json();
+  PROVIDER_STATE = {agentId:id, data:d, editing:null};
+  KEY_CACHE = {};
+  renderProviders();
+}
+
+async function refreshProviders(){
+  const {agentId} = PROVIDER_STATE;
+  PROVIDER_STATE.data = await (await apiFetch(`/api/agents/${agentId}/providers`)).json();
+  PROVIDER_STATE.editing = null;
+  KEY_CACHE = {};
+  renderProviders();
+}
+
+function renderProviders(){
+  const {data} = PROVIDER_STATE;
+  const body = document.getElementById('providerBody');
+  if(!data.supported){ body.innerHTML='<div style="color:var(--dim)">该工具暂不支持供应商管理</div>'; return; }
+  const mode = data.mode==='coexist'
+    ? '共存：多套供应商同时写入，工具内选择使用'
+    : '切换：同一时间一套生效，点「启用」即写回配置';
+  let html = `<div style="color:var(--dim);font-size:12px;margin-bottom:10px">
+    模式：${mode}。切换只改地址 / 密钥 / 模型，插件、Hooks、MCP 等原样保留，改前自动备份 .bak-aac-*。</div>`;
+  const items = data.items||[];
+  if(!items.length){
+    html += '<div style="color:var(--dim);font-size:13px">还没有供应商，点右下角「新增供应商」。</div>';
+  }
+  for(const it of items){
+    const cur = it.id===data.current;
+    const keyHtml = it.api_key_set
+      ? '密钥：<span style="color:var(--fg)">已设置</span> <span style="color:var(--dim)">（点「编辑」查看 / 复制）</span>'
+      : '密钥：未设置';
+    html += `<div style="border:1px solid ${cur?'var(--accent)':'var(--border)'};border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div style="min-width:0">
+        <div><b>${esc(it.name)}</b> ${cur?'<span class="badge b-ok">使用中</span>':''}</div>
+        <div class="meta" style="color:var(--dim);font-size:12px;margin-top:2px">${esc(it.base_url||'（官方 / 默认端点）')}${it.model?' · '+esc(it.model):''}</div>
+        <div style="color:var(--dim);font-size:12px">${keyHtml}</div>
+      </div>
+      <div class="acts" style="flex:none">
+        ${cur?'':`<button onclick="providerActivate(${jsArg(it.id)})">启用</button>`}
+        <button onclick="providerTest(${jsArg(it.id)})">测试</button>
+        <button onclick="providerEdit(${jsArg(it.id)})">编辑</button>
+        <button class="danger" onclick="providerDelete(${jsArg(it.id)})">删除</button>
+      </div></div>`;
+    if(PROVIDER_STATE.editing && PROVIDER_STATE.editing.id === it.id){
+      html += renderProviderForm(PROVIDER_STATE.editing);
+    }
+  }
+  if(PROVIDER_STATE.editing!==null && !(PROVIDER_STATE.editing&&PROVIDER_STATE.editing.id)){
+    html += renderProviderForm(PROVIDER_STATE.editing);
+  }
+  body.innerHTML = html;
+}
+
+function renderProviderForm(it){
+  const {data} = PROVIDER_STATE;
+  const ex = it.extra||{};
+  let extra = '';
+  if(data.adapter==='claude-env'){
+    extra = `<label>认证字段<select id="pf_auth">
+      <option value="ANTHROPIC_AUTH_TOKEN" ${(ex.auth_field||'ANTHROPIC_AUTH_TOKEN')==='ANTHROPIC_AUTH_TOKEN'?'selected':''}>ANTHROPIC_AUTH_TOKEN</option>
+      <option value="ANTHROPIC_API_KEY" ${ex.auth_field==='ANTHROPIC_API_KEY'?'selected':''}>ANTHROPIC_API_KEY</option>
+    </select></label>`;
+  } else if(data.adapter==='codex-toml'){
+    extra = `<label>接口协议<select id="pf_wire">
+      <option value="responses" ${(ex.wire_api||'responses')==='responses'?'selected':''}>responses</option>
+      <option value="chat" ${ex.wire_api==='chat'?'selected':''}>chat</option>
+    </select></label>
+    <label>需要 OpenAI 登录<select id="pf_auth_req">
+      <option value="">否</option>
+      <option value="1" ${ex.requires_openai_auth?'selected':''}>是</option>
+    </select></label>`;
+  } else if(data.adapter==='opencode-json'){
+    extra = `<label>SDK 包<input id="pf_npm" value="${esc(ex.npm||'@ai-sdk/openai-compatible')}"></label>`;
+  } else if(data.adapter==='pi-json'){
+    extra = `<label>接口协议<input id="pf_pi_api" value="${esc(ex.pi_api||'openai-completions')}" placeholder="openai-completions"></label>`;
+  }
+  const editing = !!it.id;
+  return `<div style="border:1px dashed var(--accent);border-radius:8px;padding:12px;margin:2px 0 8px">
+    <b>${editing?'编辑供应商':'新增供应商'}</b>
+    <input type="hidden" id="pf_id" value="${esc(it.id||'')}">
+    <div class="pf-grid">
+      <label>名称<input id="pf_name" value="${esc(it.name||'')}" placeholder="如 Kimi 中转"></label>
+      <label>接口地址<input id="pf_base_url" value="${esc(it.base_url||'')}" placeholder="https://..."></label>
+      <label>API Key<input id="pf_api_key" type="password" placeholder="${editing&&it.api_key_set?'留空表示不修改':'sk-...'}"></label>
+      <label>模型<span class="pf-models">
+        <input id="pf_model" value="${esc(it.model||'')}" placeholder="可选" style="flex:1">
+        <select id="pf_model_pick" style="display:none" onchange="providerPickModel(this)"></select>
+        <button type="button" class="iconbtn" title="从接口获取模型列表" onclick="providerFetchModels()">获取模型</button>
+      </span></label>
+      <label>小模型 / Fast 模型<input id="pf_small_model" value="${esc(it.small_model||'')}" placeholder="可选"></label>
+      ${extra}
+    </div>
+    ${editing&&it.api_key_set?`<div class="pf-keyrow">当前密钥：<code id="pf_key_view">••••••••</code>
+      <button type="button" class="iconbtn" title="显示 / 隐藏" onclick="providerEditToggleKey()">${ICON_EYE}</button>
+      <button type="button" class="iconbtn" title="复制" onclick="providerEditCopyKey()">${ICON_COPY}</button></div>`:''}
+    <div style="margin-top:10px"><button class="primary" onclick="providerSave()">保存</button>
+      <button onclick="providerCancel()">取消</button></div>
+  </div>`;
+}
+
+function providerNew(){ PROVIDER_STATE.editing = {}; renderProviders(); }
+function providerEdit(id){
+  const it = (PROVIDER_STATE.data.items||[]).find(i=>i.id===id) || {};
+  PROVIDER_STATE.editing = JSON.parse(JSON.stringify(it));
+  renderProviders();
+}
+function providerCancel(){ PROVIDER_STATE.editing = null; renderProviders(); }
+
+async function providerSave(){
+  const {agentId, data} = PROVIDER_STATE;
+  const g = id => document.getElementById(id)?.value ?? '';
+  const extra = {};
+  if(data.adapter==='claude-env') extra.auth_field = g('pf_auth');
+  else if(data.adapter==='codex-toml'){
+    extra.wire_api = g('pf_wire');
+    if(g('pf_auth_req')==='1') extra.requires_openai_auth = true;
+  }
+  else if(data.adapter==='opencode-json' && g('pf_npm')) extra.npm = g('pf_npm');
+  else if(data.adapter==='pi-json' && g('pf_pi_api')) extra.pi_api = g('pf_pi_api');
+  const payload = {id:g('pf_id')||null, name:g('pf_name'), base_url:g('pf_base_url'),
+    api_key:g('pf_api_key')||null, model:g('pf_model'), small_model:g('pf_small_model'), extra};
+  const r = await apiFetch(`/api/agents/${agentId}/providers`,{method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  if(r.status!==200){ toast('❌ '+((await r.json()).detail||'保存失败')); return; }
+  toast('✅ 已保存供应商');
+  await refreshProviders();
+}
+
+async function providerActivate(id){
+  const {agentId} = PROVIDER_STATE;
+  const r = await apiFetch(`/api/agents/${agentId}/providers/${id}/activate`,{method:'POST'});
+  if(r.status!==200){ toast('❌ '+((await r.json()).detail||'切换失败')); return; }
+  toast('✅ 已切换供应商并写回配置');
+  await refreshProviders();
+}
+
+async function providerImport(){
+  const {agentId} = PROVIDER_STATE;
+  const r = await apiFetch(`/api/agents/${agentId}/providers/import`,{method:'POST'});
+  const d = await r.json().catch(()=>({}));
+  if(r.status!==200){ toast('❌ '+(d.detail||'导入失败')); return; }
+  toast('✅ 已从当前配置导入：'+d.name);
+  await refreshProviders();
+}
+
+async function providerKey(id){
+  if(KEY_CACHE[id]!==undefined) return KEY_CACHE[id];
+  const {agentId} = PROVIDER_STATE;
+  const r = await apiFetch(`/api/agents/${agentId}/providers/${id}/key`);
+  const d = await r.json().catch(()=>({}));
+  KEY_CACHE[id] = r.status===200 ? (d.api_key||'') : '';
+  return KEY_CACHE[id];
+}
+async function providerEditToggleKey(){
+  const el = document.getElementById('pf_key_view');
+  if(!el) return;
+  if(el.dataset.shown==='1'){ el.textContent='••••••••'; el.dataset.shown='0'; return; }
+  const k = await providerKey(document.getElementById('pf_id').value);
+  el.textContent = k || '（空）';
+  el.dataset.shown='1';
+}
+async function providerEditCopyKey(){
+  const k = await providerKey(document.getElementById('pf_id').value);
+  if(!k){ toast('该供应商未设置密钥'); return; }
+  try{ await navigator.clipboard.writeText(k); toast('✅ 已复制密钥'); }
+  catch(e){ toast('复制失败，请点显示后手动选择'); }
+}
+function providerPickModel(sel){
+  if(sel.value) document.getElementById('pf_model').value = sel.value;
+}
+async function providerFetchModels(){
+  const {agentId} = PROVIDER_STATE;
+  const base_url = document.getElementById('pf_base_url').value.trim();
+  if(!base_url){ toast('请先填写接口地址'); return; }
+  const api_key = document.getElementById('pf_api_key').value.trim() || null;
+  const id = document.getElementById('pf_id').value || null;
+  toast('⏳ 正在获取模型列表…');
+  const r = await apiFetch(`/api/agents/${agentId}/providers/models`,{method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, base_url, api_key})});
+  const d = await r.json().catch(()=>({}));
+  if(r.status!==200){ toast('❌ '+(d.detail||'获取失败')); return; }
+  const models = d.models||[];
+  if(!models.length){ toast('⚠️ 未获取到模型'+(d.detail?'（'+d.detail+'）':'')); return; }
+  const pick = document.getElementById('pf_model_pick');
+  pick.innerHTML = '<option value="">选择模型…</option>' +
+    models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  pick.style.display = '';
+  const inp = document.getElementById('pf_model');
+  if(!inp.value) inp.value = models[0];
+  toast(`✅ 获取到 ${models.length} 个模型，点右侧下拉选择`);
+}
+
+async function providerTest(id){
+  const {agentId} = PROVIDER_STATE;
+  toast('⏳ 正在测试连接…');
+  const r = await apiFetch(`/api/agents/${agentId}/providers/${id}/test`,{method:'POST'});
+  const d = await r.json().catch(()=>({}));
+  if(r.status!==200){ toast('❌ '+(d.detail||'测试失败')); return; }
+  toast((d.ok?'✅ ':'⚠️ ')+`${d.detail}（${d.url}）`);
+}
+
+async function providerDelete(id){
+  const {agentId} = PROVIDER_STATE;
+  if(!confirm('确定删除该供应商？已经写进配置文件的内容不会被改动。')) return;
+  const r = await apiFetch(`/api/agents/${agentId}/providers/${id}`,{method:'DELETE'});
+  if(r.status!==200){ toast('❌ '+((await r.json()).detail||'删除失败')); return; }
+  toast('🗑 已删除供应商');
+  await refreshProviders();
+}
+
 /* ---------------- 导出 ---------------- */
 async function openExport(id){
   const agent = TOOLS.find(t=>t.id===id);
   document.getElementById('exportTitle').textContent=`📦 导出配置 —— ${agent.name}`;
   document.getElementById('exportBody').innerHTML='<div style="color:var(--dim)">正在扫描分类…（程序补丁需下载官方包比对，可能需要半分钟）</div>';
   document.getElementById('exportMask').classList.add('open');
-  const d = await (await fetch(`/api/agents/${id}/detail`)).json();
+  const d = await (await apiFetch(`/api/agents/${id}/detail`)).json();
   EXPORT_STATE = {agentId:id, detail:d, selected:new Set()};
   const rows = [];
   for(const cat of ORDER){
@@ -1261,6 +1685,12 @@ async function openExport(id){
       if(p.added?.length) lines.push('➕ 新增的文件（'+p.added.length+'）：\n'+p.added.slice(0,50).join('\n'));
       filesHtml=lines.join('\n\n');
       extra=`基于官方版本 ${p.pkg_version} 对比`;
+    } else if(cat==='providers'){
+      const pv=d.providers;
+      if(!pv || !pv.supported){ rows.push(catRow(cat,0,0,'',true,'该工具暂不支持供应商管理')); continue; }
+      count=(pv.items||[]).length;
+      filesHtml=(pv.items||[]).map(i=>i.name+(i.api_key_set?'（含密钥）':'')).join('\n');
+      extra='模式：'+(pv.mode==='coexist'?'共存':'切换')+(count?' · 含 API 密钥，请妥善保管包文件':'');
     } else if(cat==='conversations'){
       const c=d.categories[cat];
       count=c.files.length; size=c.size;
@@ -1276,9 +1706,27 @@ async function openExport(id){
         filesHtml=c.files.slice(0,80).map(f=>f.path.replace(/^\/Users\/[^/]+/,'~')+(f.json_keys?'  ⤷ 提取 '+f.json_keys.join(','):'')).join('\n')+(count>80?`\n… 共 ${count} 个`:'');
     }
     const defOff = cat==='conversations';
-    rows.push(catRow(cat,count,size,filesHtml,false,extra,defOff));
+    rows.push(catRow(cat,count,size,filesHtml,false,extra,defOff,cat==='conversations'));
   }
-  document.getElementById('exportBody').innerHTML=rows.join('');
+  const osRow = `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+    <b>目标平台路径布局</b>
+    <div class="meta" style="color:var(--dim);font-size:12px;margin-top:4px">
+      自动跟随本机；选 Windows 会在导出时就把 ~/.config/* 写成 %APPDATA%/* 布局。
+      <select id="exportTargetOs" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--fg);padding:2px 6px;font-size:12px;margin-left:6px">
+        <option value="">自动（跟随本机）</option>
+        <option value="macOS">macOS</option>
+        <option value="Windows">Windows</option>
+        <option value="linux">linux</option>
+      </select>
+    </div>
+    <div class="meta" style="color:var(--dim);font-size:12px;margin-top:8px">
+      <label style="cursor:pointer"><input type="checkbox" id="exportEncrypt" onchange="toggleExportEncrypt()"> 加密导出</label>
+      <span>（默认不加密；含 API Key 时建议加密）</span>
+      <input type="password" id="exportPassword" placeholder="设置密码"
+        style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--fg);padding:3px 8px;font-size:12px;margin-left:6px">
+    </div>
+  </div>`;
+  document.getElementById('exportBody').innerHTML=osRow+rows.join('');
   updateConvCount();
 }
 
@@ -1298,19 +1746,25 @@ function updateConvCount(){
   el.textContent = days ? `→ 将打包 ${count} 个文件 · ${fmtSize(size)}` : '';
 }
 
-function catRow(cat,count,size,filesHtml,disabled,extra,defOff){
+function catRow(cat,count,size,filesHtml,disabled,extra,defOff,extraIsHtml){
   const on = !defOff && count>0;
   if(on) EXPORT_STATE?.selected.add(cat);
   return `<div class="cat-row">
     <label class="sw"><input type="checkbox" ${on?'checked':''} ${disabled||count===0?'disabled':''}
       onchange="toggleCat('${cat}',this.checked)"><i></i></label>
     <div class="info"><b>${LABELS[cat]}</b>
-      <div class="meta">${count} 个文件${size?' · '+fmtSize(size):''}${extra?' · '+extra:''}${count===0?' · 无内容':''}</div>
-      ${filesHtml?`<div class="files">${filesHtml}</div>`:''}
+      <div class="meta">${count} 个文件${size?' · '+fmtSize(size):''}${extra?' · '+(extraIsHtml?extra:esc(extra)):''}${count===0?' · 无内容':''}</div>
+      ${filesHtml?`<div class="files">${esc(filesHtml)}</div>`:''}
     </div></div>`;
 }
 
 function toggleCat(cat,on){ on?EXPORT_STATE.selected.add(cat):EXPORT_STATE.selected.delete(cat); }
+
+function toggleExportEncrypt(){
+  const on = document.getElementById('exportEncrypt')?.checked;
+  const pw = document.getElementById('exportPassword');
+  if(pw){ pw.style.display = on ? '' : 'none'; if(!on) pw.value=''; }
+}
 
 async function confirmExport(){
   const {agentId,selected}=EXPORT_STATE;
@@ -1319,8 +1773,12 @@ async function confirmExport(){
   if(selected.has('conversations') && convFilter().count===0){
     toast('所选时间范围内没有会话文件'); return;
   }
-  const r=await fetch(`/api/export/${agentId}`,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({categories:[...selected], conv_days:convDays})});
+  const target_os = document.getElementById('exportTargetOs')?.value || null;
+  const encrypt = document.getElementById('exportEncrypt')?.checked;
+  const password = encrypt ? (document.getElementById('exportPassword')?.value || null) : null;
+  if(encrypt && !password){ toast('请设置加密密码'); return; }
+  const r=await apiFetch(`/api/export/${agentId}`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({categories:[...selected], conv_days:convDays, target_os, password})});
   const {file,size}=await r.json();
   closeModal('exportMask');
   toast(`已导出：${file}（${fmtSize(size)}）`);
@@ -1328,19 +1786,43 @@ async function confirmExport(){
 }
 
 /* ---------------- 导入 ---------------- */
+async function sendImportPreview(f, password){
+  const fd=new FormData(); fd.append('file',f); fd.append('password',password||'');
+  return apiFetch('/api/import/preview',{method:'POST',body:fd});
+}
 async function doImport(input){
   const f=input.files[0]; if(!f) return;
-  const fd=new FormData(); fd.append('file',f);
-  const r=await fetch('/api/import/preview',{method:'POST',body:fd});
-  if(r.status!==200){ toast((await r.json()).detail||'解析失败'); input.value=''; return; }
+  let password='';
+  let r=await sendImportPreview(f, password);
+  if(r.status===401){
+    const d=await r.json().catch(()=>({}));
+    if(d.detail==='NEED_PASSWORD' || d.detail==='PASSWORD_ERROR'){
+      const p=prompt(d.detail==='PASSWORD_ERROR'?'密码错误，请重新输入：':'该配置包已加密，请输入密码：');
+      if(p===null){ input.value=''; return; }
+      password=p;
+      r=await sendImportPreview(f, password);
+    }
+  }
+  if(r.status!==200){ toast((await r.json().catch(()=>({detail:'解析失败'}))).detail||'解析失败'); input.value=''; return; }
   const data=await r.json();
-  IMPORT_STATE={filename:data.filename,selected:new Set()};
+  IMPORT_STATE={filename:data.filename,selected:new Set(),password};
   const m=data.manifest;
   document.getElementById('importTitle').textContent=`✅ 导入配置 —— ${m.agent_name}（${m.created} 导出）`;
-  let html=(data.warnings||[]).map(w=>`<div class="warn">⚠️ ${w}</div>`).join('');
+  let html=(data.warnings||[]).map(w=>`<div class="warn">⚠️ ${esc(w)}</div>`).join('');
   html+=`<div style="color:var(--dim);font-size:12px;margin-bottom:8px">按分类独立应用，互不影响。被覆盖的本机文件会先备份为 .bak-aac-*。</div>`;
   const conflicts = data.conflicts||{};
   for(const cat of ORDER){
+    if(cat==='providers'){
+      const pv=m.providers; if(!pv) continue;
+      const cf = conflicts.providers || {overwrite:pv.count||0,new:0,skip:0};
+      IMPORT_STATE.selected.add(cat);
+      html+=`<div class="cat-row">
+        <label class="sw"><input type="checkbox" checked onchange="toggleImportCat('providers',this.checked)"><i></i></label>
+        <div class="info"><b>${LABELS.providers}</b>
+          <div class="meta">${pv.count||0} 个供应商 · 同名合并${(cf.overwrite?' · <span style="color:var(--orange)">⚠️ 覆盖 '+cf.overwrite+'</span>':'')}</div>
+        </div></div>`;
+      continue;
+    }
     const info=m.categories[cat]; if(!info) continue;
     const count = info.entries.length;
     const cf = conflicts[cat] || {overwrite:0,new:count,skip:0};
@@ -1352,7 +1834,7 @@ async function doImport(input){
     html+=`<div class="cat-row">
       <label class="sw"><input type="checkbox" checked onchange="toggleImportCat('${cat}',this.checked)"><i></i></label>
       <div class="info"><b>${LABELS[cat]}</b>
-        <div class="meta">${count} 个文件${cat==='patches'&&info.pkg_version?' · 补丁基于 '+info.pkg_version:''}${parts.length?' · '+parts.join(' · '):''}</div>
+        <div class="meta">${count} 个文件${cat==='patches'&&info.pkg_version?' · 补丁基于 '+esc(info.pkg_version):''}${parts.length?' · '+parts.join(' · '):''}</div>
       </div></div>`;
   }
   document.getElementById('importBody').innerHTML=html||'<div style="color:var(--dim)">包内没有可导入的分类</div>';
@@ -1362,11 +1844,11 @@ async function doImport(input){
 function toggleImportCat(cat,on){ on?IMPORT_STATE.selected.add(cat):IMPORT_STATE.selected.delete(cat); }
 
 async function confirmImport(){
-  const {filename,selected}=IMPORT_STATE;
+  const {filename,selected,password}=IMPORT_STATE;
   if(!selected.size){ toast('请至少勾选一个分类'); return; }
   closeModal('importMask');
-  const r=await fetch('/api/import/apply',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({filename,categories:[...selected]})});
+  const r=await apiFetch('/api/import/apply',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({filename,categories:[...selected], password:password||null})});
   const {task_id}=await r.json();
   openLog(task_id, ACTION_LABELS['import-apply']);
 }
@@ -1390,16 +1872,20 @@ async function checkUpdateRun(id){
     return;
   }
   toast('🔍 正在检测程序修改…');
-  const d = await (await fetch(`/api/agents/${id}/detail`)).json();
+  const d = await (await apiFetch(`/api/agents/${id}/detail`)).json();
   const p = d.patches || {};
+  if(p.error){
+    toast('⚠️ 补丁检测失败，已取消更新：'+(p.error||'未知错误'));
+    return;
+  }
   const mods = [...(p.modified||[]), ...(p.added||[])];
   if(!mods.length){ act('update', id, null, true); return; }
   UPDATE_TARGET = id;
   document.getElementById('updateTitle').textContent = `⚠️ 更新 ${agent.name} 将覆盖 ${mods.length} 个程序修改`;
   document.getElementById('updateBody').innerHTML = `
-    <div class="warn">检测到你对程序本体的自定义修改（基于 v${p.pkg_version||'?'}），npm 更新会全部覆盖。</div>
+    <div class="warn">检测到你对程序本体的自定义修改（基于 v${esc(p.pkg_version||'?')}），npm 更新会全部覆盖。</div>
     <div style="font-size:13px;margin-bottom:8px">被修改的文件：</div>
-    <div class="files" style="max-height:180px">${mods.map(f=>'✏️ '+f).join('\n')}</div>
+    <div class="files" style="max-height:180px">${mods.map(f=>'✏️ '+esc(f)).join('\n')}</div>
     <div style="font-size:13px;margin-top:10px;color:var(--dim)">
       「💾 备份补丁并更新」：先把修改存成快照，更新后自动尝试把修改重新打到新版本上
       （能定位到的自动移植，定位不到的在日志里明确列出，不会静默失败）。<br>
@@ -1411,19 +1897,38 @@ function updateDirect(){ closeModal('updateMask'); act('update', UPDATE_TARGET, 
 
 /* ---------------- 设置 / 云同步 / 自动备份 ---------------- */
 async function openSettings(){
-  const s = await (await fetch('/api/settings')).json();
+  const s = await (await apiFetch('/api/settings')).json();
   document.getElementById('wd_url').value = s.webdav.url||'';
   document.getElementById('wd_user').value = s.webdav.username||'';
   document.getElementById('wd_pass').value = '';
   document.getElementById('wd_pass').placeholder = s.webdav.password_set ? '已保存（留空不修改）' : '密码 / 应用密码';
   document.getElementById('wd_dir').value = s.webdav.remote_dir||'/aac';
+  document.getElementById('cc_db').value = (s.ccswitch && s.ccswitch.db) || '';
+  document.getElementById('cc_result').textContent = '';
   document.getElementById('ab_enable').checked = !!s.auto_backup.enabled;
   document.getElementById('ab_hours').value = s.auto_backup.interval_hours||24;
   const sel = new Set(s.auto_backup.agents||[]);
-  document.getElementById('ab_agents').innerHTML = TOOLS.filter(t=>t.installed).map(t=>
-    `<label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer">
-       <input type="checkbox" class="ab-agent" value="${t.id}" ${sel.has(t.id)?'checked':''}> ${t.name}</label>`).join('')
-    || '<span style="color:var(--dim);font-size:12px">本机暂无已安装工具</span>';
+  const abAgents = document.getElementById('ab_agents');
+  abAgents.replaceChildren();
+  const installedTools = TOOLS.filter(t=>t.installed);
+  if(installedTools.length){
+    for(const t of installedTools){
+      const label = document.createElement('label');
+      label.style.cssText = 'font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.className = 'ab-agent';
+      input.value = t.id;
+      input.checked = sel.has(t.id);
+      label.append(input, document.createTextNode(' '+t.name));
+      abAgents.appendChild(label);
+    }
+  } else {
+    const empty = document.createElement('span');
+    empty.style.cssText = 'color:var(--dim);font-size:12px';
+    empty.textContent = '本机暂无已安装工具';
+    abAgents.appendChild(empty);
+  }
   document.getElementById('settingsMsg').textContent = '';
   document.getElementById('sudoState').textContent = SUDO_PWD ? '已记住（仅本次会话）' : '未记住密码';
   document.getElementById('cf_install').checked = !!CONFIRM.install;
@@ -1445,21 +1950,87 @@ function settingsPayload(){
       interval_hours: parseInt(document.getElementById('ab_hours').value)||24,
       agents: [...document.querySelectorAll('.ab-agent:checked')].map(c=>c.value),
     },
+    ccswitch: { db: document.getElementById('cc_db').value.trim() },
   };
 }
 async function saveSettings(){
   const p = settingsPayload();
-  await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+  await apiFetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
   document.getElementById('settingsMsg').textContent = '✅ 已保存（密码仅存储在本机 ~/.aac/settings.json）';
 }
 async function testCloud(){
   await saveSettings();
-  const r = await (await fetch('/api/cloud/test',{method:'POST'})).json();
+  const r = await (await apiFetch('/api/cloud/test',{method:'POST'})).json();
   document.getElementById('settingsMsg').textContent = r.ok ? '✅ 连接成功' : '❌ '+r.msg;
 }
+/* ---------------- 从 cc-switch 导入 ---------------- */
+function ccToolName(agentId){ const t = TOOLS.find(x=>x.id===agentId); return t ? t.name : (agentId||'—'); }
+async function ccScan(){
+  const box = document.getElementById('cc_result');
+  const db = document.getElementById('cc_db').value.trim();
+  box.innerHTML = '<div class="cc-toolbar"><span class="cc-count">扫描中…</span></div>';
+  const r = await apiFetch('/api/ccswitch/scan'+(db?`?db=${encodeURIComponent(db)}`:''));
+  const d = await r.json().catch(()=>({}));
+  if(!d.exists){ box.innerHTML = `<div class="cc-toolbar"><span class="cc-count">未找到数据库：</span><code class="cc-url">${esc(d.db||db)}</code></div>`; return; }
+  if(d.error){ box.innerHTML = '<div class="cc-toolbar"><span class="cc-count">读取失败：'+esc(d.error)+'</span></div>'; return; }
+  const groups = {};
+  for(const e of d.entries){ (groups[e.app_type] = groups[e.app_type]||[]).push(e); }
+  let html = `<div class="cc-toolbar">
+      <span class="cc-count">共 ${d.entries.length} 条</span>
+      <button onclick="ccToggleAll(true)">全选</button>
+      <button onclick="ccToggleAll(false)">全不选</button>
+      <span class="spacer"></span>
+      <button class="primary" onclick="ccImport()">导入勾选的</button>
+    </div>`;
+  for(const app of Object.keys(groups)){
+    const list = groups[app];
+    html += `<div class="cc-group">
+      <div class="cc-group-head">
+        <b>${esc(ccToolName(list[0].agent_id))}</b>
+        <span class="cc-app">${esc(app)}</span>
+        <span class="cc-n">${list.length} 条</span>
+        <span class="spacer"></span>
+        <button onclick="ccGroupToggle('${esc(app)}',true)">本组全选</button>
+        <button onclick="ccGroupToggle('${esc(app)}',false)">清空</button>
+      </div>`;
+    for(const e of list){
+      const dis = e.supported ? '' : 'disabled';
+      html += `<label class="cc-item${e.supported?'':' off'}">
+        <input type="checkbox" class="ccck" data-app="${esc(app)}" data-name="${esc(e.name)}" ${dis}>
+        <div class="cc-main">
+          <div class="cc-name">${esc(e.name)}${e.current?' <span class="badge b-ok">使用中</span>':''}</div>
+          <div class="cc-meta">
+            <span class="cc-url">${esc(e.base_url||'（无地址）')}</span>
+            ${e.model?`<span class="cc-model">${esc(e.model)}</span>`:''}
+            ${e.supported?'':`<span class="cc-note">${esc(e.note||'暂不支持')}</span>`}
+          </div>
+        </div>
+      </label>`;
+    }
+    html += '</div>';
+  }
+  box.innerHTML = html;
+}
+function ccToggleAll(on){ document.querySelectorAll('.ccck').forEach(c=>{ if(!c.disabled) c.checked = on; }); }
+function ccGroupToggle(app,on){
+  document.querySelectorAll('.ccck').forEach(c=>{ if(c.dataset.app===app && !c.disabled) c.checked = on; });
+}
+async function ccImport(){
+  const sel = [...document.querySelectorAll('.ccck:checked')].filter(c=>!c.disabled)
+                .map(c=>({app_type:c.dataset.app, name:c.dataset.name}));
+  if(!sel.length){ toast('请至少勾选一条'); return; }
+  const db = document.getElementById('cc_db').value.trim();
+  const r = await apiFetch('/api/ccswitch/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({db:db||null, selected:sel})});
+  const d = await r.json().catch(()=>({}));
+  if(r.status!==200){ toast('❌ '+(d.detail||'导入失败')); return; }
+  const names = Object.entries(d.agents||{}).map(([k,v])=>`${ccToolName(k)}:${v}`).join('，');
+  toast(`✅ 已导入 ${d.imported} 条${names?'（'+names+'）':''}`);
+  document.querySelectorAll('.ccck').forEach(c=>{ c.checked = false; });
+}
+
 async function cloudSync(push){
   await saveSettings();
-  const r = await (await fetch(push?'/api/cloud/push':'/api/cloud/pull',{method:'POST'})).json();
+  const r = await (await apiFetch(push?'/api/cloud/push':'/api/cloud/pull',{method:'POST'})).json();
   openLog(r.task_id, ACTION_LABELS[push?'cloud-push':'cloud-pull']);
 }
 
@@ -1474,24 +2045,31 @@ function openLog(taskId, title, agentId, action){
   panel.classList.add('open'); logEl.textContent=''; logEl.classList.add('running');
   statusEl.className='run'; statusEl.textContent='运行中';
   const timer=setInterval(async()=>{
-    const t=await (await fetch(`/api/tasks/${taskId}`)).json();
-    logEl.innerHTML = t.log.split('\n').map(l=>{
-      const e = l.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-      return /^npm warn/i.test(l) ? `<span style="opacity:.4">${e}</span>` : e;   // 警告行淡化，不吓人
-    }).join('\n');
+    const t=await (await apiFetch(`/api/tasks/${taskId}`)).json();
+    const fragment=document.createDocumentFragment();
+    const lines=String(t.log||'').split('\n');
+    lines.forEach((line, index)=>{
+      const span=document.createElement('span');
+      if(/^npm warn/i.test(line)) span.style.opacity='.4';
+      span.textContent=line+(index<lines.length-1?'\n':'');
+      fragment.appendChild(span);
+    });
+    logEl.replaceChildren(fragment);
     logEl.scrollTop=logEl.scrollHeight;
     if(t.status!=='running'){
       clearInterval(timer);
       logEl.classList.remove('running');
       const ok = t.status==='done';
-      statusEl.className = ok?'done':'fail';
-      statusEl.textContent = ok?'✅ 完成':'❌ 失败';
+      const partial = t.status==='partial';
+      statusEl.className = ok?'done':partial?'partial':'fail';
+      statusEl.textContent = ok?'✅ 完成':partial?'⚠️ 部分完成':'❌ 失败';
       if(agentId){
         delete BUSY[agentId];
         if(ok) delete FAILED[agentId];
         else FAILED[agentId] = action==='safe-update' ? 'update' : action;
       }
-      toast(ok?'任务完成 ✅':'任务失败 ❌（可点黄色「重试」按钮再来一次）');
+      toast(ok?'任务完成 ✅':partial?'更新完成，但部分补丁未能恢复 ⚠️'
+        :'任务失败 ❌（可点黄色「重试」按钮再来一次）');
       loadTools();
     }
   },800);
@@ -1501,7 +2079,7 @@ function openLog(taskId, title, agentId, action){
 let ENV = null;
 async function loadEnv(){
   try{
-    ENV = await (await fetch('/api/env')).json();
+    ENV = await (await apiFetch('/api/env')).json();
     const ok = [], miss = [];
     for(const [k,v] of Object.entries(ENV)) (v.installed?ok:miss).push(v.label||k);
     document.getElementById('envBadge').textContent =
@@ -1513,22 +2091,22 @@ async function openEnv(focus){
   document.getElementById('envBody').innerHTML = Object.entries(ENV).map(([k,v])=>{
     const hl = focus===k ? 'border:1px solid var(--orange);border-radius:8px;' : '';
     const state = v.installed
-      ? `<span class="badge b-ok">✓ ${v.version||'已安装'}</span>`
+      ? `<span class="badge b-ok">✓ ${esc(v.version||'已安装')}</span>`
       : '<span class="badge b-no">未安装</span>';
     const action = v.installed ? ''
       : (v.auto_install
-        ? `<button class="primary" onclick="envInstall('${k}')">⬇️ 一键安装</button>`
+        ? `<button class="primary" onclick="envInstall(${jsArg(k)})">⬇️ 一键安装</button>`
         : `<span style="font-size:12px;color:var(--dim)">需手动安装</span>`);
     const hint = !v.installed && v.manual_hint
-      ? `<div style="font-size:12px;color:var(--dim);margin:0 4px 8px">💡 ${v.manual_hint}</div>` : '';
+      ? `<div style="font-size:12px;color:var(--dim);margin:0 4px 8px">💡 ${esc(v.manual_hint)}</div>` : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid var(--border);${hl}">
-      <b style="width:90px;font-size:13px">${v.label||k}</b>${state}
+      <b style="width:90px;font-size:13px">${esc(v.label||k)}</b>${state}
       <span style="margin-left:auto">${action}</span></div>${hint}`;
   }).join('');
   document.getElementById('envMask').classList.add('open');
 }
 async function envInstall(name){
-  const r = await fetch(`/api/env/install/${name}`, {method:'POST'});
+  const r = await apiFetch(`/api/env/install/${name}`, {method:'POST'});
   if(r.status===400){
     const d = await r.json();
     toast('⚠️ '+(d.detail||'无法自动安装'));
@@ -1540,15 +2118,21 @@ async function envInstall(name){
   closeModal('envMask');
   openLog(task_id, `🧰 安装环境 —— ${ENV[name]?.label||name}`);
   const timer = setInterval(async()=>{
-    const t = await (await fetch(`/api/tasks/${task_id}`)).json();
+    const t = await (await apiFetch(`/api/tasks/${task_id}`)).json();
     if(t.status!=='running'){ clearInterval(timer); ENV=null; loadEnv(); loadTools(); }
   }, 1000);
 }
 
 /* ---------------- 压缩包识别安装 ---------------- */
 function openArchive(){
-  document.getElementById('archiveAgent').innerHTML = TOOLS.map(t=>
-    `<option value="${t.id}">${t.name}${t.installed?'（已安装，将覆盖重装）':''}</option>`).join('');
+  const select=document.getElementById('archiveAgent');
+  select.replaceChildren();
+  for(const t of TOOLS){
+    const option=document.createElement('option');
+    option.value=t.id;
+    option.textContent=t.name+(t.installed?'（已安装，将覆盖重装）':'');
+    select.appendChild(option);
+  }
   document.getElementById('archiveHint').textContent = '';
   document.getElementById('archiveMask').classList.add('open');
 }
@@ -1561,7 +2145,7 @@ async function doArchiveInstall(input){
   const fd = new FormData();
   fd.append('file', f);
   closeModal('archiveMask');
-  const r = await fetch(`/api/install-archive/${agentId}`, {method:'POST', body:fd});
+  const r = await apiFetch(`/api/install-archive/${agentId}`, {method:'POST', body:fd});
   if(r.status===400){ const d=await r.json(); toast('⚠️ '+(d.detail||'安装被拒绝')); return; }
   const {task_id} = await r.json();
   openLog(task_id, `🗜️ 压缩包安装 —— ${agent?agent.name:agentId}`);

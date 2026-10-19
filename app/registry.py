@@ -1,11 +1,11 @@
-"""加载 registry/agents.yaml 工具注册表。"""
+"""加载随应用分发的 agents.yaml 工具注册表。"""
 
 from functools import lru_cache
 from pathlib import Path
 
 import yaml
 
-REGISTRY_PATH = Path(__file__).resolve().parent.parent / "registry" / "agents.yaml"
+REGISTRY_PATH = Path(__file__).resolve().with_name("agents.yaml")
 
 
 @lru_cache(maxsize=1)

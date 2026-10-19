@@ -11,6 +11,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from .paths import relative_target
+
 USER_PREFIX = Path.home() / ".aac" / "npm"
 IS_WINDOWS = os.name == "nt"
 
@@ -92,11 +94,15 @@ def build_install_argv(agent: dict, scope: str) -> tuple[list[str], bool]:
     return ["npm", "install", "-g", "--prefix", str(prefix), npm_pkg], need_sudo
 
 
-def build_update_argv(agent: dict, scope: str) -> tuple[list[str], bool]:
+def build_update_argv(
+    agent: dict,
+    scope: str,
+    target_prefix: str | None = None,
+) -> tuple[list[str], bool]:
     """更新 = 原地升级到最新版。已安装的工具永远更新它所在的前缀，
     与页面上选的安装范围无关（scope 只影响全新安装的位置）。"""
     npm_pkg = (agent.get("sources") or {})["npm"]
-    prefix = install_prefix_of(agent.get("command"))
+    prefix = Path(target_prefix) if target_prefix else install_prefix_of(agent.get("command"))
     if prefix and not is_kimi_runtime(prefix):
         need_sudo = not prefix_writable(str(prefix))
         return ["npm", "install", "-g", "--prefix", str(prefix), f"{npm_pkg}@latest"], need_sudo
@@ -132,38 +138,103 @@ def build_uninstall_argv_for_prefix(agent: dict, prefix: str) -> list[str]:
     return ["npm", "uninstall", "-g", "--prefix", prefix, npm_pkg]
 
 
-def is_script_layout(prefix: str, command: str, npm_pkg: str) -> bool:
+def _declared_script_prefix(prefix: str, script_prefix: str | None) -> Path | None:
+    """返回经过校验的注册表脚本安装根目录。"""
+    if not script_prefix:
+        return None
+    try:
+        raw = Path(prefix)
+        declared = (
+            Path.home() / script_prefix[2:]
+            if script_prefix.startswith(("~/", "~\\"))
+            else Path(script_prefix)
+        )
+        if not raw.is_absolute() or raw.is_symlink() or declared.is_symlink():
+            return None
+        actual = raw.resolve()
+        expected = declared.resolve()
+        home = Path.home().resolve()
+        if actual != expected or expected == home or not expected.is_relative_to(home):
+            return None
+        return expected
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
+def is_script_layout(
+    prefix: str,
+    command: str,
+    npm_pkg: str,
+    script_prefix: str | None = None,
+) -> bool:
     """脚本安装布局判定（如 ~/.opencode：bin 与 node_modules 直接在前缀根下，
     不是 npm 的 lib/node_modules 结构）。只认用户目录内的前缀。"""
-    p = Path(prefix)
     try:
-        p.relative_to(Path.home())
-    except ValueError:
+        p = Path(prefix).resolve()
+        home = Path.home().resolve()
+        if not Path(prefix).is_absolute() or p == home or not p.is_relative_to(home):
+            return False
+    except (OSError, RuntimeError, ValueError):
+        return False
+    package = relative_target(p, f"node_modules/{npm_pkg}")
+    bin_dir = relative_target(p, "bin")
+    if package is None or bin_dir is None:
         return False
     shims = (command, f"{command}.cmd", f"{command}.exe", f"{command}.bat")
-    return (p / "node_modules" / npm_pkg).is_dir() and any((p / "bin" / f).exists() for f in shims)
+    has_shim = any((bin_dir / f).is_file() for f in shims)
+    if not has_shim:
+        return False
+    if package.is_dir():
+        return True
+    native_root = _declared_script_prefix(prefix, script_prefix)
+    if native_root is None:
+        return False
+    node_modules = relative_target(native_root, "node_modules")
+    return (
+        node_modules is not None
+        and node_modules.is_dir()
+        and not node_modules.is_symlink()
+    )
 
 
-def remove_script_prefix(prefix: str, command: str, npm_pkg: str, log: list[str]) -> int:
+def remove_script_prefix(
+    prefix: str,
+    command: str,
+    npm_pkg: str,
+    log: list[str],
+    script_prefix: str | None = None,
+) -> int:
     """直接删除脚本安装前缀里的程序文件（npm uninstall 对这种布局会假成功）。"""
-    p = Path(prefix)
+    native_root = _declared_script_prefix(prefix, script_prefix)
+    if not is_script_layout(prefix, command, npm_pkg, script_prefix):
+        log.append("[error] 安装位置校验失败，拒绝删除\n")
+        return 1
+    p = Path(prefix).resolve()
     log.append(f"🗑 检测到脚本安装布局，直接清理 {p} 内的程序文件…\n")
     try:
-        pkg_dir = p / "node_modules" / npm_pkg
-        if pkg_dir.is_dir():
-            shutil.rmtree(pkg_dir, ignore_errors=True)
+        pkg_dir = relative_target(p, f"node_modules/{npm_pkg}")
+        if pkg_dir is not None and pkg_dir.is_dir():
+            shutil.rmtree(pkg_dir)
             log.append(f"  已删除 {pkg_dir}\n")
+        if native_root is not None:
+            node_modules = relative_target(p, "node_modules")
+            if node_modules is not None and node_modules.is_dir() and not node_modules.is_symlink():
+                shutil.rmtree(node_modules)
+                log.append(f"  已删除 {node_modules}\n")
         for f in (command, f"{command}.cmd", f"{command}.exe", f"{command}.bat"):
-            shim = p / "bin" / f
+            shim = relative_target(p, f"bin/{f}")
+            if shim is None:
+                continue
             if shim.exists() or shim.is_symlink():
                 shim.unlink()
                 log.append(f"  已删除 {shim}\n")
         for meta in ("package.json", "package-lock.json"):
-            mf = p / meta
-            if mf.is_file():
+            mf = relative_target(p, meta)
+            if mf is not None and mf.is_file():
                 mf.unlink()
-        for d in (p / "bin", p / "node_modules"):
-            if d.is_dir() and not any(d.iterdir()):
+        for rel in ("bin", "node_modules"):
+            d = relative_target(p, rel)
+            if d is not None and d.is_dir() and not any(d.iterdir()):
                 d.rmdir()
         if p.is_dir() and not any(p.iterdir()):
             p.rmdir()

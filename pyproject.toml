@@ -1,6 +1,6 @@
 [project]
 name = "all-agent-config"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI Agent 装机与配置迁移中心 —— 一键安装/更新/备份/迁移你的所有 Agent TUI 工具"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -9,6 +9,7 @@ dependencies = [
     "uvicorn>=0.29",
     "pyyaml>=6.0",
     "python-multipart>=0.0.9",
+    "cryptography>=42",
 ]
 
 [project.scripts]
@@ -18,7 +19,7 @@ aac = "app.main:cli"
 packages = ["app"]
 
 [tool.setuptools.package-data]
-app = ["static/*"]
+app = ["static/*", "agents.yaml"]
 
 [build-system]
 requires = ["setuptools>=68"]

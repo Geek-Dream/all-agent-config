@@ -18,9 +18,12 @@ import tarfile
 import tempfile
 import time
 import urllib.request
+import uuid
 from pathlib import Path
 
 from . import categories
+from .paths import relative_target
+from .safefs import atomic_write_text, ensure_private_dir
 
 WORK_ROOT = Path.home() / ".aac" / "patchwork"
 PORT_SIZE_LIMIT = 8 * 1024 * 1024
@@ -200,6 +203,8 @@ def snapshot(agent: dict, patches: dict, log: list[str]) -> bool:
     if not url:
         log.append("[补丁] 无法获取官方包地址，跳过快照\n")
         return False
+    work = work_dir(agent["id"])
+    temp_work: Path | None = None
     try:
         with tempfile.TemporaryDirectory() as td:
             tgz = Path(td) / "pkg.tgz"
@@ -208,21 +213,27 @@ def snapshot(agent: dict, patches: dict, log: list[str]) -> bool:
                 categories._safe_extract(tar, Path(td))
             official = Path(td) / "package"
 
-            work = work_dir(agent["id"])
-            if work.is_dir():
-                shutil.rmtree(work)
-            (work / "official").mkdir(parents=True)
-            (work / "patched").mkdir()
+            if work.is_symlink():
+                raise ValueError("补丁快照目录是符号链接，拒绝覆盖")
+            ensure_private_dir(WORK_ROOT)
+            temp_work = Path(tempfile.mkdtemp(
+                prefix=f".{agent['id']}-", dir=WORK_ROOT))
+            (temp_work / "official").mkdir()
+            (temp_work / "patched").mkdir()
 
             meta = {"pkg": pkg, "pkg_version": version,
                     "created": time.strftime("%Y-%m-%d %H:%M:%S"),
                     "base": {}, "patched_hashes": {}}
             for rel in patches.get("modified", []):
-                src_off, src_pat = official / rel, pdir / rel
+                safe_rel = relative_target(pdir, rel)
+                src_off = relative_target(official, rel)
+                if safe_rel is None or src_off is None:
+                    continue
+                src_pat = safe_rel
                 if not (src_off.is_file() and src_pat.is_file()):
                     continue
-                dst_off = work / "official" / rel
-                dst_pat = work / "patched" / rel
+                dst_off = temp_work / "official" / rel
+                dst_pat = temp_work / "patched" / rel
                 dst_off.parent.mkdir(parents=True, exist_ok=True)
                 dst_pat.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src_off, dst_off)
@@ -230,48 +241,85 @@ def snapshot(agent: dict, patches: dict, log: list[str]) -> bool:
                 meta["base"][rel] = categories._sha256(src_off)
                 meta["patched_hashes"][rel] = categories._sha256(src_pat)
             for rel in patches.get("added", []):
-                src_pat = pdir / rel
+                src_pat = relative_target(pdir, rel)
+                if src_pat is None:
+                    continue
                 if not src_pat.is_file():
                     continue
-                dst_pat = work / "patched" / rel
+                dst_pat = temp_work / "patched" / rel
                 dst_pat.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src_pat, dst_pat)
                 meta["patched_hashes"][rel] = categories._sha256(src_pat)
-            (work / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+            if not meta["patched_hashes"]:
+                raise ValueError("没有可保存的补丁文件")
+            atomic_write_text(
+                temp_work / "meta.json",
+                json.dumps(meta, ensure_ascii=False, indent=2),
+            )
+            old = work.with_name(f"{work.name}.old-{uuid.uuid4().hex}")
+            if work.exists():
+                work.rename(old)
+            try:
+                temp_work.rename(work)
+                temp_work = None
+            except Exception:
+                if old.exists() and not work.exists():
+                    old.rename(work)
+                raise
+            finally:
+                if old.exists():
+                    shutil.rmtree(old)
         log.append(f"[补丁] 已保存 {len(meta['patched_hashes'])} 个文件快照（基于 v{version}）\n")
         return True
     except Exception as e:  # noqa: BLE001
         log.append(f"[补丁] 快照失败：{e}\n")
         return False
+    finally:
+        if temp_work is not None and temp_work.exists():
+            shutil.rmtree(temp_work, ignore_errors=True)
 
 
 def _backup(p: Path, log: list[str]) -> None:
     if p.is_file():
-        bak = p.with_name(p.name + time.strftime(".bak-aac-%Y%m%d-%H%M%S"))
-        shutil.copy2(p, bak)
-        log.append(f"        原文件已备份 → {bak.name}\n")
+        suffix = time.strftime(".bak-aac-%Y%m%d-%H%M%S")
+        index = 0
+        while True:
+            bak = p.with_name(p.name + suffix + (f"-{index}" if index else ""))
+            try:
+                with bak.open("xb") as dst, p.open("rb") as src:
+                    shutil.copyfileobj(src, dst)
+                shutil.copystat(p, bak)
+                log.append(f"        原文件已备份 → {bak.name}\n")
+                return
+            except FileExistsError:
+                index += 1
 
 
-def reapply(agent: dict, log: list[str]) -> None:
+def reapply(agent: dict, log: list[str]) -> dict:
     """更新后尝试把补丁打回/移植到新版文件。"""
     work = work_dir(agent["id"])
     meta_file = work / "meta.json"
     if not meta_file.is_file():
-        return
-    meta = json.loads(meta_file.read_text())
+        result = {"status": "failed", "ok": 0, "ported": 0, "failed": 1}
+        log.append("[补丁] 找不到更新前快照，无法重打\n")
+        return result
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
     pdir = categories.package_dir(agent)
     if not pdir:
+        result = {"status": "failed", "ok": 0, "ported": 0,
+                  "failed": len(meta.get("patched_hashes", {})) or 1}
         log.append("[补丁] 更新后找不到安装目录，跳过重打\n")
-        return
+        return result
 
     ok = ported = failed = 0
     for rel, psha in meta.get("patched_hashes", {}).items():
-        target = pdir / rel
-        patched_src = work / "patched" / rel
-        if not patched_src.is_file():
+        target = relative_target(pdir, rel)
+        patched_src = relative_target(work / "patched", rel)
+        if target is None or patched_src is None or not patched_src.is_file():
+            failed += 1
+            log.append(f"  ❌ 快照路径不安全或文件缺失  {rel}\n")
             continue
         base_sha = meta.get("base", {}).get(rel)
-        label = f"        {rel}\n"
 
         if base_sha is None:
             # 新增文件：目标不存在或内容不同则恢复
@@ -307,7 +355,12 @@ def reapply(agent: dict, log: list[str]) -> None:
                 failed += 1
                 log.append(f"  ❌ 跳过（文件过大）{rel}\n")
                 continue
-            old_text = (work / "official" / rel).read_text(errors="replace")
+            official = relative_target(work / "official", rel)
+            if official is None or not official.is_file():
+                failed += 1
+                log.append(f"  ❌ 官方基线缺失  {rel}\n")
+                continue
+            old_text = official.read_text(errors="replace")
             pat_text = patched_src.read_text(errors="replace")
             new_text = target.read_text(errors="replace")
             ported_text = _port(old_text, pat_text, new_text)
@@ -326,3 +379,5 @@ def reapply(agent: dict, log: list[str]) -> None:
     log.append(f"\n[补丁] 重打完成：成功 {ok}，自动移植 {ported}，失败 {failed}\n")
     if failed:
         log.append("[补丁] 失败的文件已在快照中保留（~/.aac/patchwork），可手动处理后重新应用\n")
+    status = "complete" if failed == 0 else ("partial" if ok or ported else "failed")
+    return {"status": status, "ok": ok, "ported": ported, "failed": failed}

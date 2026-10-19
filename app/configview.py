@@ -13,6 +13,7 @@ import shutil
 from pathlib import Path
 
 from .categories import expand
+from .runtimeview import items_for_agent
 
 OFF_SUFFIX = ".aacoff"
 DISABLED_NS = "aacDisabled"
@@ -205,6 +206,7 @@ def _file_items(agent: dict) -> list[dict]:
 
 def list_config(agent: dict) -> dict:
     cats = agent.get("categories") or {}
+    runtime_items = items_for_agent(agent)
 
     skills: list[dict] = []
     for e in cats.get("skills") or []:
@@ -238,6 +240,8 @@ def list_config(agent: dict) -> dict:
     return {
         "agent": {"id": agent["id"], "name": agent["name"]},
         "groups": [
+            *([{"key": "runtime", "label": "运行配置",
+                "items": runtime_items}] if runtime_items else []),
             {"key": "skills", "label": "Skills 技能", "items": skills},
             {"key": "ext", "label": "扩展 / 命令 / 子代理", "items": exts},
             {"key": "mcp", "label": "MCP 服务器",

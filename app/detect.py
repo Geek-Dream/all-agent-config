@@ -10,6 +10,7 @@ from pathlib import Path
 
 from . import installer
 from .installer import IS_WINDOWS, install_prefix_of, is_kimi_runtime
+from .paths import relative_target
 
 SEMVER_RE = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?")
 
@@ -143,14 +144,105 @@ def detect_install_method(agent: dict) -> str | None:
     return None
 
 
-def current_version(agent: dict) -> str | None:
-    binpath = resolve_command(agent)
-    if not binpath:
+def _command_candidates(
+    agent: dict,
+    installs: list[dict],
+    include_path: bool = True,
+) -> list[Path]:
+    """返回可执行文件候选：PATH 命中项优先，然后按探测到的实际前缀查找。"""
+    candidates: list[Path] = []
+    if include_path:
+        found = resolve_command(agent)
+        if found:
+            candidates.append(Path(found))
+    names = (
+        [agent["command"], f"{agent['command']}.cmd", f"{agent['command']}.exe",
+         f"{agent['command']}.bat"]
+        if IS_WINDOWS else [agent["command"]]
+    )
+    for item in installs:
+        prefix = item.get("prefix")
+        if not prefix:
+            continue
+        root = Path(prefix)
+        dirs = [root, root / "bin"] if IS_WINDOWS else [root / "bin"]
+        for directory in dirs:
+            candidates.extend(directory / name for name in names)
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for path in candidates:
+        try:
+            key = str(path.resolve())
+        except (OSError, RuntimeError):
+            key = str(path)
+        if key in seen or not path.is_file():
+            continue
+        seen.add(key)
+        unique.append(path)
+    return unique
+
+
+def _manifest_version_for_install(agent: dict, install: dict) -> str | None:
+    """从单个 npm 安装前缀的包元数据读取版本。"""
+    npm_pkg = (agent.get("sources") or {}).get("npm")
+    if not npm_pkg:
         return None
+    relative_paths = (
+        f"lib/node_modules/{npm_pkg}/package.json",
+        f"node_modules/{npm_pkg}/package.json",
+    )
+    prefix = install.get("prefix")
+    if not prefix:
+        return None
+    for relative in relative_paths:
+        manifest = relative_target(Path(prefix), relative)
+        if manifest is None or not manifest.is_file():
+            continue
+        try:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue
+        version = data.get("version") if isinstance(data, dict) else None
+        if isinstance(version, str) and SEMVER_RE.fullmatch(version):
+            return version
+    return None
+
+
+def _manifest_version(agent: dict, installs: list[dict]) -> str | None:
+    """CLI 无法启动时，从 npm 包元数据读取已安装版本。"""
+    for item in installs:
+        version = _manifest_version_for_install(agent, item)
+        if version:
+            return version
+    return None
+
+
+def _command_version(agent: dict, candidates: list[Path]) -> str | None:
     args = agent["version_cmd"].split()
-    out = _run([binpath, *args[1:]], timeout=15)
-    m = SEMVER_RE.search(out)
-    return m.group(0) if m else None
+    for binpath in candidates:
+        out = _run([str(binpath), *args[1:]], timeout=15)
+        m = SEMVER_RE.search(out)
+        if m:
+            return m.group(0)
+    return None
+
+
+def version_for_install(agent: dict, install: dict) -> str | None:
+    """只查询指定安装前缀的版本，避免把副本显示成主安装的版本。"""
+    version = _command_version(
+        agent, _command_candidates(agent, [install], include_path=False))
+    if version:
+        return version
+    return _manifest_version_for_install(agent, install)
+
+
+def current_version(agent: dict, installs: list[dict] | None = None) -> str | None:
+    if installs is None:
+        installs = find_installs(agent["command"], agent.get("bin_paths"))
+    version = _command_version(agent, _command_candidates(agent, installs))
+    if version:
+        return version
+    return _manifest_version(agent, installs)
 
 
 def latest_version(agent: dict) -> str | None:
@@ -189,10 +281,16 @@ def is_updatable(current: str | None, latest: str | None) -> bool:
 def scan_one(agent: dict) -> dict:
     method = detect_install_method(agent)
     installed = method is not None
-    cur = current_version(agent) if installed else None
-    latest = latest_version(agent) if installed else None
     installs = find_installs(agent["command"], agent.get("bin_paths")) if installed else []
+    latest = latest_version(agent) if installed else None
+    if installed:
+        for item in installs:
+            item["current_version"] = version_for_install(agent, item)
+            item["updatable"] = is_updatable(item.get("current_version"), latest)
     primary = installs[0] if installs else None
+    cur = primary.get("current_version") if primary else None
+    if installed and cur is None:
+        cur = current_version(agent, installs)
     if method == "other" and primary and (agent.get("sources") or {}).get("npm"):
         method = "npm-global"   # 前缀探测确认是 npm 安装，只是 PATH 里的 npm 不认识它
     needs_sudo = primary["needs_sudo"] if primary else False
