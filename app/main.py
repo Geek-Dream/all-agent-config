@@ -10,6 +10,7 @@ import tempfile
 import time
 import uuid
 import webbrowser
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
@@ -26,7 +27,27 @@ from .safefs import ensure_private_dir
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 
-app = FastAPI(title="All Agent Config", version="0.2.0")
+_OPEN_URL: str | None = None
+
+
+async def _open_browser_later(url: str) -> None:
+    """等服务真正开始监听后再开浏览器，避免首屏「无法连接」。"""
+    await asyncio.sleep(0.6)
+    try:
+        await asyncio.to_thread(webbrowser.open, url)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    asyncio.create_task(backup.auto_backup_loop())
+    if _OPEN_URL:
+        asyncio.create_task(_open_browser_later(_OPEN_URL))
+    yield
+
+
+app = FastAPI(title="All Agent Config", version="0.2.0", lifespan=_lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # 内存任务表：task_id -> {"status": "running"|"done"|"failed", "log": list[str]}
@@ -795,11 +816,6 @@ async def api_backup_now() -> dict:
     return {"task_id": tid}
 
 
-@app.on_event("startup")
-async def _startup() -> None:
-    asyncio.create_task(backup.auto_backup_loop())
-
-
 # ------------------------------------------------------------------ M2 配置迁移
 
 class ExportReq(BaseModel):
@@ -1051,15 +1067,17 @@ async def api_import_apply(req: ImportApplyReq) -> dict:
 
 
 def cli() -> None:
-    import sys
-    port = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv else 8600
-    url = f"http://127.0.0.1:{port}"
-    print(f"All Agent Config → {url}")
-    try:
-        webbrowser.open(url)
-    except Exception:
-        pass
-    uvicorn.run(app, host="127.0.0.1", port=port)
+    import argparse
+    global _OPEN_URL
+    parser = argparse.ArgumentParser(prog="aac", description="All Agent Config")
+    parser.add_argument("--port", type=int, default=8600)
+    parser.add_argument("--no-browser", action="store_true",
+                        help="启动后不自动打开浏览器")
+    args = parser.parse_args()
+    url = f"http://127.0.0.1:{args.port}"
+    _OPEN_URL = None if args.no_browser else url
+    print(f"All Agent Config: {url}")
+    uvicorn.run(app, host="127.0.0.1", port=args.port)
 
 
 if __name__ == "__main__":

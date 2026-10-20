@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.aac/
+dist/
+build/
+.DS_Store
+start.log
+.venv.broken-*/

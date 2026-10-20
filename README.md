@@ -14,6 +14,12 @@ AI Agent 装机与配置迁移中心 —— 一键安装、更新、备份、迁
 
 macOS 也可以在 Finder 里**双击 `start.command`**；Windows **双击 `start.bat`**。
 
+启动脚本会自动检查：Python ≥ 3.11 → `.venv` 是否可用（坏了自动重建）→ 依赖是否完整（缺了自动装）；Windows 版还会检查 8600 是否被占用。缺 Python 时会询问是否用 `winget`（Windows）/ `brew`（macOS）安装；所有失败都会停住窗口并写明原因，诊断信息追加到 `start.log`。
+
+```bash
+./start.sh --port 8601 --no-browser   # 可选参数，Windows: start.bat --port 8601 --no-browser
+```
+
 手动方式：
 
 ```bash

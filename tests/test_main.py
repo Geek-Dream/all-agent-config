@@ -419,6 +419,10 @@ class CloudPullDecisionTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    def setUp(self):
+        main._OPEN_URL = None
+        self.addCleanup(setattr, main, "_OPEN_URL", None)
+
     def test_cli_binds_loopback_and_preserves_custom_port(self):
         for arguments, port in ((["aac"], 8600), (["aac", "--port", "8754"], 8754)):
             with self.subTest(arguments=arguments):
@@ -426,3 +430,10 @@ class CliTests(unittest.TestCase):
                     main.cli()
                 self.assertEqual(run.call_args.kwargs["host"], "127.0.0.1")
                 self.assertEqual(run.call_args.kwargs["port"], port)
+                self.assertEqual(main._OPEN_URL, f"http://127.0.0.1:{port}")
+
+    def test_cli_no_browser_flag_disables_auto_open(self):
+        with patch.object(sys, "argv", ["aac", "--no-browser"]), \
+                patch.object(main.uvicorn, "run"), patch("builtins.print"):
+            main.cli()
+        self.assertIsNone(main._OPEN_URL)

@@ -61,3 +61,17 @@
 - CI：测试失败时通过 `::error` 注解输出失败摘要（公开可读，无需 token）。
 - 验证：`make check` 116 OK；C locale 模拟 116 OK；GitHub Actions ubuntu/macos/windows 三平台全绿（c3831a6）。
 - 教训：不要用 `>` 写入可能是指向真实文件的符号链接；写临时脚本前先 `ls -l` 确认不是链接（本轮曾穿透覆盖 Kimi 内置 python3.12，已用官方 3.2.16 更新包原样恢复并校验哈希）。
+
+## Windows 一键启动加固（本轮）
+- `app/main.py`
+  - `cli()` 改用 argparse：`--port` 缺值不再 IndexError，新增 `--no-browser`；启动横幅去掉 `→`（输出被重定向到 cp936 文件时会 UnicodeEncodeError）。
+  - 浏览器改到服务启动后 0.6s 打开，修复「双击后首屏无法连接」；启动钩子从废弃的 `on_event` 迁到 `lifespan`。
+- `start.bat`
+  - CRLF + `chcp 65001`；依次探测 `py -3.12` / `py -3` / `python` 并校验 3.11+。
+  - 缺失时询问是否 `winget install Python.Python.3.12`；装完刷新当前会话路径。
+  - `.venv` 不可用 → 改名 `.venv.broken-*` 后重建；依赖缺失才 `pip install -e .`。
+  - 8600 被占用 → 询问是否直接打开已有实例；失败停住窗口并写 `start.log`。
+- `start.sh`：同样的 Python / venv / 依赖检测，缺 Python 时询问是否 `brew install python@3.12`。
+- `.gitattributes` 固定 `*.bat` 为 CRLF；`.gitignore` 忽略 `start.log`、`.venv.broken-*`。
+- 验证：`make check` 117 OK；`bash -n start.sh`；`python -m app.main --port 8611 --no-browser` 冒烟 `/api/tools` = 200、无 DeprecationWarning；`--port abc` 退出码 2。
+- 未验证：`start.bat` 需在真实 Windows 上点一次（winget 安装 / UAC / 端口提示 / 中文显示）。
