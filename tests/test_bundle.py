@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 import zipfile
@@ -190,7 +191,7 @@ class BundleTests(unittest.TestCase):
             zf.writestr("system/one", json.dumps({"path": source_home + r"\bin"}))
         bundle.import_apply(path, ["system"], [])
         self.assertEqual(json.loads((self.home / "settings.json").read_text(encoding="utf-8"))["path"],
-                         str(self.home) + "/bin")
+                         os.path.join(str(self.home), "bin"))
 
     def test_platform_dir_layout_is_rewritten_across_os(self):
         dirs = [{"posix": "~/.config/opencode", "windows": "%APPDATA%/opencode"}]
@@ -214,7 +215,8 @@ class BundleTests(unittest.TestCase):
         (self.home / ".config" / "opencode" / "opencode.json").write_text("{}")
         agent = dict(self.agent, platform_dirs=[
             {"posix": "~/.config/opencode", "windows": "%APPDATA%/opencode"}])
-        with patch.object(bundle.registry, "get_agent", return_value=agent), \
+        with patch.object(bundle, "_os_name", return_value="macOS"), \
+                patch.object(bundle.registry, "get_agent", return_value=agent), \
                 patch.object(bundle.categories, "agent_detail", return_value=detail):
             path = bundle.export_bundle("demo", ["system"], target_os="Windows")
         with zipfile.ZipFile(path) as zf:

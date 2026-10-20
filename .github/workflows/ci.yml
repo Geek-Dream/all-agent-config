@@ -47,7 +47,7 @@ jobs:
                   keep.append(s)
               elif "Error" in s or "assert" in s.lower():
                   keep.append(s[:300])
-          msg = " | ".join(keep[:25])[:6000] or text[-3000:]
+          msg = " | ".join(keep[:200])[:60000] or text[-3000:]
           print("::error title=Test failures::" + msg.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
           PY
           fi

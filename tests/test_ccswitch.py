@@ -25,7 +25,8 @@ class CCSwitchTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="aac-ccs-")
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name).resolve()
-        env = patch.dict(os.environ, {"HOME": str(self.home)})
+        env = patch.dict(os.environ, {"HOME": str(self.home),
+                                      "USERPROFILE": str(self.home)})
         env.start()
         self.addCleanup(env.stop)
         store = patch.object(providers, "STORE", self.home / ".aac" / "providers.json")
@@ -101,7 +102,8 @@ class OpenClawAdapterTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="aac-oc-")
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name).resolve()
-        env = patch.dict(os.environ, {"HOME": str(self.home)})
+        env = patch.dict(os.environ, {"HOME": str(self.home),
+                                      "USERPROFILE": str(self.home)})
         env.start()
         self.addCleanup(env.stop)
         store = patch.object(providers, "STORE", self.home / ".aac" / "providers.json")

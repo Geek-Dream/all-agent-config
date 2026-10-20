@@ -15,7 +15,8 @@ class ProviderTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="aac-prov-")
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name).resolve()
-        env = patch.dict(os.environ, {"HOME": str(self.home)})
+        env = patch.dict(os.environ, {"HOME": str(self.home),
+                                      "USERPROFILE": str(self.home)})
         env.start()
         self.addCleanup(env.stop)
         store = patch.object(providers, "STORE", self.home / ".aac" / "providers.json")

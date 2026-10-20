@@ -119,7 +119,7 @@ class UpdateArgvTests(unittest.TestCase):
                 agent, "user", "/Users/wl/.local")
         self.assertEqual(
             argv,
-            ["npm", "install", "-g", "--prefix", "/Users/wl/.local",
+            ["npm", "install", "-g", "--prefix", str(Path("/Users/wl/.local")),
              "@demo/cli@latest"],
         )
         self.assertFalse(need_sudo)
