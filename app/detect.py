@@ -3,6 +3,8 @@
 import asyncio
 import json
 import os
+import platform
+import plistlib
 import re
 import shutil
 import subprocess
@@ -49,6 +51,64 @@ def _scope_of(prefix: Path) -> str:
         return "global"
 
 
+_DESKTOP_OS = {"Darwin": "macos", "Windows": "windows", "Linux": "linux"}
+
+
+def _desktop_entries(spec: dict, key: str | None) -> list[str]:
+    if not key:
+        return []
+    value = spec.get(key)
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [v for v in value if isinstance(v, str)]
+    return []
+
+
+def desktop_paths(agent: dict) -> list[Path]:
+    """注册表声明的桌面程序位置 + 文件夹/压缩包安装到 ~/.aac/apps 的 .app。"""
+    spec = agent.get("desktop") or {}
+    paths: list[Path] = []
+    for raw in _desktop_entries(spec, _DESKTOP_OS.get(platform.system())):
+        try:
+            paths.append(Path(os.path.expandvars(os.path.expanduser(raw))))
+        except (TypeError, ValueError):
+            continue
+    root = Path.home() / ".aac" / "apps" / str(agent.get("id") or "")
+    if root.is_dir():
+        paths.extend(sorted(root.glob("*.app")))
+        paths.extend(sorted(root.glob("*/*.app")))
+    return paths
+
+
+def desktop_path(agent: dict) -> Path | None:
+    for path in desktop_paths(agent):
+        if path.exists():
+            return path
+    return None
+
+
+def _desktop_version(agent: dict) -> str | None:
+    path = desktop_path(agent)
+    if not path or path.suffix.lower() != ".app":
+        return None
+    try:
+        data = plistlib.loads((path / "Contents" / "Info.plist").read_bytes())
+    except (OSError, ValueError, plistlib.InvalidFileException):
+        return None
+    version = data.get("CFBundleShortVersionString") or data.get("CFBundleVersion")
+    return version if isinstance(version, str) and SEMVER_RE.fullmatch(version) else None
+
+
+def launch_target(agent: dict) -> Path | None:
+    """优先桌面程序，其次 PATH / bin_paths / ~/.aac/apps 里的命令。"""
+    path = desktop_path(agent)
+    if path:
+        return path
+    found = resolve_command(agent)
+    return Path(found) if found else None
+
+
 def resolve_command(agent: dict) -> str | None:
     """找到该工具实际可用的二进制路径：先 PATH，再注册表声明的 bin_paths。"""
     cmd = shutil.which(agent["command"])
@@ -71,10 +131,14 @@ def resolve_command(agent: dict) -> str | None:
     return None
 
 
-def find_installs(command: str, bin_paths: list[str] | None = None) -> list[dict]:
-    """在 PATH、注册表 bin_paths 和所有常见前缀里找该命令的安装位置。
+def find_installs(
+    command: str,
+    bin_paths: list[str] | None = None,
+    desktop: Path | None = None,
+) -> list[dict]:
+    """在桌面程序、PATH、注册表 bin_paths 和所有常见前缀里找安装位置。
 
-    返回 [{"prefix", "scope", "primary", "needs_sudo"}]，第一项为 PATH 里实际生效的安装。
+    返回 [{"prefix", "scope", "primary", "needs_sudo"}]，第一项为实际生效的安装。
     """
     found: list[dict] = []
     seen: set[str] = set()
@@ -88,6 +152,13 @@ def find_installs(command: str, bin_paths: list[str] | None = None) -> list[dict
             prefix / ("Scripts" if IS_WINDOWS else "bin"), os.W_OK)
         found.append({"prefix": key, "scope": _scope_of(prefix),
                       "primary": primary, "needs_sudo": needs_sudo})
+
+    if desktop is not None:
+        key = str(desktop.parent)
+        if key not in seen:
+            seen.add(key)
+            found.append({"prefix": key, "scope": _scope_of(desktop.parent),
+                          "primary": True, "needs_sudo": False})
 
     if shutil.which(command):
         prefix = install_prefix_of(command)
@@ -126,7 +197,9 @@ def _run(cmd: list[str], timeout: int = 20) -> str:
 
 
 def detect_install_method(agent: dict) -> str | None:
-    """返回安装方式：npm-global / other / None（未安装）。"""
+    """返回安装方式：desktop / npm-global / other / None（未安装）。"""
+    if desktop_path(agent):
+        return "desktop"
     npm_pkg = (agent.get("sources") or {}).get("npm")
     if npm_pkg and shutil.which("npm"):
         out = _run(["npm", "ls", "-g", "--depth=0", "--json"], timeout=30)
@@ -139,7 +212,7 @@ def detect_install_method(agent: dict) -> str | None:
     if resolve_command(agent):
         return "other"
     # PATH 之外的位置（注册表 bin_paths、常见前缀、~/.aac/apps 压缩包安装）
-    if find_installs(agent["command"], agent.get("bin_paths")):
+    if find_installs(agent["command"], agent.get("bin_paths"), desktop_path(agent)):
         return "other"
     return None
 
@@ -281,8 +354,9 @@ def is_updatable(current: str | None, latest: str | None) -> bool:
 def scan_one(agent: dict) -> dict:
     method = detect_install_method(agent)
     installed = method is not None
-    installs = find_installs(agent["command"], agent.get("bin_paths")) if installed else []
-    latest = latest_version(agent) if installed else None
+    desktop = desktop_path(agent)
+    installs = find_installs(agent["command"], agent.get("bin_paths"), desktop) if installed else []
+    latest = latest_version(agent) if installed and method != "desktop" else None
     if installed:
         for item in installs:
             item["current_version"] = version_for_install(agent, item)
@@ -291,6 +365,8 @@ def scan_one(agent: dict) -> dict:
     cur = primary.get("current_version") if primary else None
     if installed and cur is None:
         cur = current_version(agent, installs)
+    if installed and cur is None:
+        cur = _desktop_version(agent)
     if method == "other" and primary and (agent.get("sources") or {}).get("npm"):
         method = "npm-global"   # 前缀探测确认是 npm 安装，只是 PATH 里的 npm 不认识它
     needs_sudo = primary["needs_sudo"] if primary else False
@@ -308,7 +384,9 @@ def scan_one(agent: dict) -> dict:
         "install_count": len(installs),
         "needs_sudo": needs_sudo,
         "installs": installs,                                    # 所有安装位置（含未使用的副本）
-        "auto_install": installer.available_source(agent) is not None,
+        "auto_install": (installer.available_source(agent) is not None
+                         or bool((agent.get("sources") or {}).get("download"))
+                         or bool((agent.get("sources") or {}).get("github"))),
         "managed": bool(agent.get("managed_files")),       # 可安全卸载程序文件（独立二进制）
         "install_hint": (agent.get("sources") or {}).get("manual"),
         "homepage": agent.get("homepage", ""),

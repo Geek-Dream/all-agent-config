@@ -5,7 +5,9 @@
 
 import asyncio
 import os
+import platform
 import shutil
+import subprocess
 import tempfile
 import time
 import uuid
@@ -20,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from urllib.parse import urlsplit
 
-from . import archive, backup, bundle, categories as catmod, ccswitch, cloud, configview, detect, env as envmod, installer, meta, patchwork, providers, registry
+from . import archive, backup, bundle, categories as catmod, ccswitch, cloud, configview, detect, download, engines, env as envmod, installer, meta, patchwork, providers, registry
 from .paths import relative_target
 from .safefs import ensure_private_dir
 
@@ -114,7 +116,8 @@ def _sudo_arg(req: "ActionReq", need_sudo: bool) -> str | None:
 
 def _detected_update_prefix(agent: dict, requested: str | None = None) -> str | None:
     """更新必须跟随已探测到的主安装，不能按新装 scope 落到别的前缀。"""
-    installs = detect.find_installs(agent["command"], agent.get("bin_paths"))
+    installs = detect.find_installs(
+        agent["command"], agent.get("bin_paths"), detect.desktop_path(agent))
     known = {str(item["prefix"]) for item in installs if item.get("prefix")}
     if requested and requested not in known:
         raise HTTPException(400, f"未知的安装位置: {requested}")
@@ -136,6 +139,44 @@ def _finish_task(tid: str, status: str) -> None:
         return
     task["status"] = status
     task["finished_at"] = time.monotonic()
+
+
+def _spawn(target: Path) -> None:
+    """后台启动程序：不阻塞服务，关闭终端也不影响。"""
+    kwargs = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL,
+              "stderr": subprocess.DEVNULL}
+    if platform.system() == "Darwin" and target.suffix.lower() == ".app":
+        subprocess.Popen(["open", str(target)], **kwargs)
+        return
+    if os.name == "nt":
+        kwargs["creationflags"] = (subprocess.DETACHED_PROCESS
+                                   | subprocess.CREATE_NEW_PROCESS_GROUP)
+        kwargs["close_fds"] = True
+    else:
+        kwargs["start_new_session"] = True
+    subprocess.Popen([str(target)], **kwargs)
+
+
+def _start_download(agent: dict) -> dict:
+    tid = _new_task()
+    log: list[str] = TASKS[tid]["log"]  # type: ignore[index]
+
+    async def job() -> None:
+        try:
+            target = await asyncio.to_thread(download.install_agent, agent, log)
+            log.append(f"✅ 安装完成：{target}\n")
+            try:
+                _spawn(target)
+                log.append(f"🚀 已启动：{target}\n")
+            except OSError as exc:
+                log.append(f"安装完成，但自动启动失败：{exc}\n")
+            _finish_task(tid, "done")
+        except Exception as e:  # noqa: BLE001
+            log.append(f"\n[error] {e}\n")
+            _finish_task(tid, "failed")
+
+    asyncio.create_task(job())
+    return {"task_id": tid}
 
 
 def _prune_tasks() -> None:
@@ -182,17 +223,24 @@ def index() -> FileResponse:
 
 @app.get("/api/tools")
 async def api_tools() -> list[dict]:
-    tools = await detect.scan_all(registry.load_agents())
+    agents = registry.load_agents()
+    tools = await detect.scan_all(agents)
     for tool in tools:
         agent = registry.get_agent(tool.get("id", ""))
         tool["provider_supported"] = bool(agent and providers.supported(agent))
+        tool["requires"] = engines.check(agent) if agent else None
+        tool["launchable"] = bool(agent and detect.launch_target(agent))
     return tools
 
 
 @app.get("/api/env")
 async def api_env() -> dict:
-    """本机安装管理器（node/npm/pnpm/brew/scoop/winget/pipx）检测。"""
-    return await asyncio.to_thread(envmod.check_env)
+    """本机安装管理器（node/npm/pnpm/git/brew/scoop/winget/pipx）+ Python/系统信息。"""
+    data = await asyncio.to_thread(envmod.check_env)
+    agents = registry.load_agents()
+    if engines.stale(agents):
+        asyncio.create_task(asyncio.to_thread(engines.refresh, agents))
+    return data
 
 
 @app.post("/api/env/install/{name}")
@@ -357,11 +405,31 @@ async def api_install_archive(agent_id: str, file: UploadFile) -> dict:
     return {"task_id": tid}
 
 
+def _require_node(agent: dict, action: str) -> None:
+    """安装/更新前校验 Node 下限：取 npm 上最新版的 engines.node 与本机比较。"""
+    problem = engines.check(agent, refresh_cache=True)
+    if problem and problem["ok"] is False:
+        have = problem["have"] or "未安装"
+        raise HTTPException(
+            400,
+            f"ENV_VERSION:node:{problem['required']}:{have}:"
+            f"{action} {agent['name']} 需要 Node {problem['required']}，当前 {have}",
+        )
+
+
 @app.post("/api/install/{agent_id}")
 async def api_install(agent_id: str, req: ActionReq) -> dict:
     agent = registry.get_agent(agent_id)
     if not agent:
         raise HTTPException(404, "unknown agent")
+    if download.available(agent):
+        if not download.platform_source_available(agent):
+            raise HTTPException(
+                400,
+                f"当前平台（{download.platform_key()}）暂无安装包："
+                "可点「访问官网」手动下载，或用「压缩包安装」")
+        return _start_download(agent)
+    _require_node(agent, "安装")
     src = installer.available_source(agent)
     if not src:
         miss = installer.missing_manager(agent)
@@ -386,11 +454,61 @@ async def api_install(agent_id: str, req: ActionReq) -> dict:
     return {"task_id": tid}
 
 
+class FolderReq(BaseModel):
+    path: str
+
+
+@app.post("/api/launch/{agent_id}")
+async def api_launch(agent_id: str) -> dict:
+    agent = registry.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(404, "unknown agent")
+    target = detect.launch_target(agent)
+    if target is None:
+        raise HTTPException(400, "未找到可启动的程序，请先安装")
+    try:
+        _spawn(target)
+    except OSError as e:
+        raise HTTPException(400, f"启动失败：{e}") from e
+    return {"ok": True, "target": str(target)}
+
+
+@app.post("/api/install-folder/{agent_id}")
+async def api_install_folder(agent_id: str, req: FolderReq) -> dict:
+    """手动安装：复制用户选择的文件夹（或 .app）到安装目录。"""
+    agent = registry.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(404, "unknown agent")
+    tid = _new_task()
+    log: list[str] = TASKS[tid]["log"]  # type: ignore[index]
+
+    async def job() -> None:
+        try:
+            target = await asyncio.to_thread(
+                download.install_folder, agent, Path(req.path), log)
+            log.append(f"✅ 安装完成：{target}\n")
+            _finish_task(tid, "done")
+        except Exception as e:  # noqa: BLE001
+            log.append(f"\n[error] {e}\n")
+            _finish_task(tid, "failed")
+
+    asyncio.create_task(job())
+    return {"task_id": tid}
+
+
 @app.post("/api/update/{agent_id}")
 async def api_update(agent_id: str, req: ActionReq) -> dict:
     agent = registry.get_agent(agent_id)
     if not agent:
         raise HTTPException(404, "unknown agent")
+    if download.available(agent):
+        if not download.platform_source_available(agent):
+            raise HTTPException(
+                400,
+                f"当前平台（{download.platform_key()}）暂无安装包："
+                "可点「访问官网」手动下载，或用「压缩包安装」")
+        return _start_download(agent)
+    _require_node(agent, "更新")
     if not (agent.get("sources") or {}).get("npm"):
         src = installer.available_source(agent)
         if not src:
@@ -424,6 +542,32 @@ async def api_uninstall(agent_id: str, req: ActionReq) -> dict:
     if req.prefix and req.prefix not in archive_known:
         raise HTTPException(400, f"未知的安装位置: {req.prefix}")
     archive_prefix_arg = req.prefix or (archive_installs[0]["prefix"] if archive_installs else None)
+    desktop = detect.desktop_path(agent)
+    if desktop is not None and desktop.suffix.lower() == ".app":
+        try:
+            desktop.resolve().relative_to(Path.home().resolve())
+        except ValueError:
+            raise HTTPException(400, "该程序安装在系统目录，请手动拖到废纸篓") from None
+        tid = _new_task()
+        log: list[str] = TASKS[tid]["log"]  # type: ignore[index]
+
+        async def rmdir() -> None:
+            log.append(f"🗑 删除 {desktop} …\n")
+            try:
+                await asyncio.to_thread(shutil.rmtree, desktop)
+                parent = desktop.parent
+                if (parent.name == agent_id and parent.parent.name == "apps"
+                        and parent.parent.parent == Path.home() / ".aac"
+                        and parent.is_dir() and not any(parent.iterdir())):
+                    parent.rmdir()
+                log.append("已删除。\n")
+                _finish_task(tid, "done")
+            except Exception as e:  # noqa: BLE001
+                log.append(f"[error] {e}\n")
+                _finish_task(tid, "failed")
+
+        asyncio.create_task(rmdir())
+        return {"task_id": tid}
     if archive_prefix_arg and Path(archive_prefix_arg) == archive_prefix:
         if (Path(archive_prefix_arg).parent != archive_prefix.parent
                 or archive_prefix.parent.is_symlink()
@@ -486,7 +630,8 @@ async def api_uninstall(agent_id: str, req: ActionReq) -> dict:
             return {"task_id": tid}
         raise HTTPException(400, "该工具暂无自动卸载方式：请按说明手动删除")
     npm_pkg = (agent.get("sources") or {}).get("npm")
-    installs = detect.find_installs(agent["command"], agent.get("bin_paths"))
+    installs = detect.find_installs(
+        agent["command"], agent.get("bin_paths"), detect.desktop_path(agent))
     known = {str(i["prefix"]) for i in installs if i.get("prefix")}
     if req.prefix and req.prefix not in known:
         raise HTTPException(400, f"未知的安装位置: {req.prefix}")

@@ -1,20 +1,25 @@
-"""运行环境（node/npm/pnpm/brew/scoop/winget/pipx）检测与一键安装。
+"""运行环境（node/npm/pnpm/git/brew/scoop/winget/pipx）检测与一键安装。
 
 启动时前端拉一次 /api/env 展示环境状态；安装工具缺少对应管理器时，
 前端弹窗引导：能自动装的给一键安装（任务日志可见），不能自动装的给官方安装说明。
+Python 与操作系统只做展示——Python 由 start.sh / start.bat 负责检测和安装。
 """
 
+import platform
 import shutil
 import subprocess
+import sys
 
 from .installer import IS_WINDOWS
 
-MANAGERS = ["node", "npm", "pnpm", "brew", "scoop", "winget", "pipx"]
+MANAGERS = ["node", "npm", "pnpm", "git", "brew", "scoop", "winget", "pipx"]
 
 _MANAGER_LABELS = {
-    "node": "Node.js", "npm": "npm", "pnpm": "pnpm", "brew": "Homebrew",
-    "scoop": "Scoop", "winget": "winget", "pipx": "pipx",
+    "node": "Node.js", "npm": "npm", "pnpm": "pnpm", "git": "Git",
+    "brew": "Homebrew", "scoop": "Scoop", "winget": "winget", "pipx": "pipx",
 }
+
+PYTHON_HINT = "由 start.sh / start.bat 检测与安装（应用自身依赖 Python 3.11+）"
 
 
 def _version(cmd: str) -> str | None:
@@ -27,7 +32,7 @@ def _version(cmd: str) -> str | None:
 
 
 def check_env() -> dict:
-    """各管理器安装状态 + 版本 + 是否支持一键安装。"""
+    """各管理器安装状态 + 版本 + 是否支持一键安装；附带 Python 与系统信息。"""
     out = {}
     for m in MANAGERS:
         path = shutil.which(m)
@@ -40,6 +45,22 @@ def check_env() -> dict:
             "auto_install": argv is not None,
             "manual_hint": hint,
         }
+    out["python"] = {
+        "label": "Python",
+        "installed": True,
+        "version": platform.python_version(),
+        "path": sys.executable,
+        "auto_install": False,
+        "manual_hint": PYTHON_HINT,
+    }
+    out["system"] = {
+        "label": "系统",
+        "installed": True,
+        "version": f"{platform.system()} {platform.release()} · {platform.machine()}",
+        "path": "",
+        "auto_install": False,
+        "manual_hint": None,
+    }
     return out
 
 
@@ -68,6 +89,17 @@ def install_argv(name: str) -> tuple[list[str] | None, str | None]:
             return ([py, "-m", "pip", "install", "--user", "pipx"],
                     "安装后执行 pipx ensurepath（或手动把 python 用户 bin 目录加入 PATH）")
         return None, "pipx 依赖 Python：请先安装 https://www.python.org/downloads/"
+    if name == "git":
+        if IS_WINDOWS and shutil.which("winget"):
+            return (["winget", "install", "-e", "--id", "Git.Git",
+                     "--accept-source-agreements", "--accept-package-agreements"],
+                    "安装完成后请重开终端（或重启本工具）再操作")
+        if shutil.which("scoop"):
+            return ["scoop", "install", "git"], "安装完成后请重开终端"
+        if shutil.which("brew"):
+            return ["brew", "install", "git"], None
+        return None, ("macOS 可执行 xcode-select --install 获取命令行工具（含 git）；"
+                      "Windows 请从 https://git-scm.com/downloads 安装")
     if name == "brew":
         return None, ('macOS 终端执行：/bin/bash -c "$(curl -fsSL '
                       'https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"')

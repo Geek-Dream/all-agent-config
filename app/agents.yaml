@@ -4,10 +4,14 @@
 # 每个工具声明：如何检测、如何安装、配置/会话数据在哪里。
 # 新增工具只需在本文档追加条目，无需改代码。
 #
-# sources 支持三种安装源：
-#   npm:    npm 包名（支持 用户级/全局 两种安装范围，见 installer.py）
-#   brew:   macOS Homebrew formula（暂不支持 Windows，标 TODO）
-#   manual: 无自动安装源，页面会提示用户手动安装并给出说明
+# sources 支持的安装源：
+#   npm:      npm 包名（支持 用户级/全局 两种安装范围，见 installer.py）
+#   brew:     macOS Homebrew formula（暂不支持 Windows，标 TODO）
+#   manual:   无自动安装源，页面会提示用户手动安装并给出说明
+#   download: 官方直链，按平台键（macos-arm64 / macos-x64 / windows-x64 / any）
+#   github:   GitHub Release（repo + asset glob，可选 mirror / prerelease / archive 源码 zip）
+#
+# desktop: 桌面程序路径（macos / windows），用于检测与「启动」按钮。
 #
 # config_dirs / session_dirs 用于 M2 的配置导出/导入与对话迁移功能。
 #
@@ -436,3 +440,28 @@ agents:
         - "~/.cursor/agents"
         - "~/.cursor/skills-cursor"
     notes: Cursor 的终端 Agent，官方脚本安装
+
+  - id: deepseek-harness
+    name: DeepSeek Harness
+    vendor: DeepSeek
+    homepage: "https://deepseek.com/harness"
+    command: dsh
+    version_cmd: dsh --version
+    desktop:
+      macos:
+        - "/Applications/DeepSeek Harness.app"
+        - "~/Applications/DeepSeek Harness.app"
+      windows:
+        - "%LOCALAPPDATA%\\Programs\\DeepSeek Harness\\DeepSeek Harness.exe"
+        - "%PROGRAMFILES%\\DeepSeek Harness\\DeepSeek Harness.exe"
+    sources:
+      download:
+        macos-arm64: "https://download.deepseek.com/desktop/dsh-latest-macos-arm64.dmg"
+        macos-x64: "https://download.deepseek.com/desktop/dsh-latest-macos-x64.dmg"
+        windows-x64: "https://download.deepseek.com/desktop/dsh-latest-windows-x64.exe"
+      npm: "@deepseek-ai/dsh"
+    config_dirs:
+      - "~/Library/Application Support/DeepSeek Harness"
+      - "%APPDATA%/DeepSeek Harness"
+    session_dirs: []
+    notes: 开发者预览（0.2.x），Electron 桌面版；配置在 userData，模型密钥在应用内设置

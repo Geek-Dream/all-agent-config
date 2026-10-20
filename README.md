@@ -69,11 +69,14 @@ aac                    # 启动并自动打开 http://127.0.0.1:8600
 - **一键更新全部对齐单个更新**：只挑可更新项、弹窗列明工具名；有程序修改的工具自动跳过并提示走补丁保护，绝不静默覆盖
 - **配置详情开关面板**：逐工具列出 skills / 扩展 / MCP / hooks 等配置项，滑块即开即关（技能目录用 `.aacoff` 后缀重命名，MCP/hooks 用 JSON 内 `aacDisabled` 命名空间，不删文件随时可恢复），分组可折叠
 - **多安装管理器**：npm → pnpm → brew → scoop → winget → pipx 按本机可用自动选择（没装 npm 也能用 pnpm 装 npm 源的工具）
-- **环境自检与一键装环境**：启动检测 node/npm/pnpm/brew/scoop/winget/pipx，工具栏实时显示；缺失的可一键安装（brew/winget/pip），装不了的给官方手动指引；安装工具时缺环境自动弹出引导
-- **压缩包识别安装**：拖入 .zip/.tar.gz，自动解压、定位可执行文件、装入 `~/.aac/apps/`（用户级），出现在列表、可卸载
+- **环境自检与一键装环境**：启动检测 node/npm/pnpm/git/brew/scoop/winget/pipx，另列 Python 与系统信息；缺失的可一键安装，装不了的给官方手动指引；安装工具时缺环境自动弹出引导
+- **按工具校验 Node 下限**：读取各 npm 包最新版 `engines.node`（缓存 6h），启动/安装/更新前比对本机版本，不满足直接拦下并提示升级
+- **压缩包 / 文件夹安装**：拖入 .zip/.tar.gz，或填写本地文件夹 / `.app` 路径，自动定位可执行文件并装入 `~/.aac/apps/`（`.app` 进 `~/Applications`）
+- **官方直链 / GitHub Release 一键下载**：按平台选包（dmg / exe / zip / tar），可选镜像地址与 SHA-256 校验；装完可直接启动
+- **随时启动**：已安装工具带「▶️ 启动」按钮，桌面程序走 `open` / `start`，CLI 后台拉起
 - **独立二进制工具受管卸载**（如 Kimi Code）：只删程序文件（bin/cache/updates），配置、会话、skills 保留
 - **Windows 深度兼容**：`.cmd/.exe` shim 识别、npm 前缀布局差异、可写性判断、UAC 提权
-- **注册表扩至 20 个主流 agent**：新增 Amp / GitHub Copilot CLI / Auggie / Continue CLI / Aider(pipx) / Goose / Cursor Agent，全部附官网链接
+- **注册表扩至 21 个主流 agent**：新增 Amp / GitHub Copilot CLI / Auggie / Continue CLI / Aider(pipx) / Goose / Cursor Agent / DeepSeek Harness，全部附官网链接或安装方式
 - **任务日志可读性**：`npm warn` 行淡化显示，真正的错误才醒目；操作失败可点黄色「重试」按钮
 
 ### M5+ 跨平台配置与会话迁移（.aac 包 format v2）
@@ -106,7 +109,9 @@ app/
   registry.py   注册表加载
   detect.py     已安装检测 / 版本查询 / 多前缀扫描（含 ~/.aac/apps、Windows shim）
   installer.py  安装 / 更新 / 卸载（npm/pnpm/brew/scoop/winget/pipx、sudo 与 UAC 提权）
-  env.py        运行环境（node/npm/pnpm/brew/scoop/winget/pipx）检测与一键安装
+  env.py        运行环境（node/npm/pnpm/git/brew/scoop/winget/pipx + Python/系统）检测与一键安装
+  engines.py    npm 最新版 engines.node 查询/缓存与 semver 校验
+  download.py   直链 / GitHub Release 下载安装（zip/dmg/exe/msi/tar）与文件夹安装
   categories.py 配置分类扫描 + 程序补丁检测（vs 官方包哈希比对）
   configview.py 配置详情开关面板（skills/扩展/MCP/hooks 启用状态读写）
   bundle.py     .aac 包导出 / 预览 / 应用（跨平台路径映射、冲突统计、可选加密）

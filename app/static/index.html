@@ -715,6 +715,12 @@
         <select id="archiveAgent" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:9px 12px;font-size:14px"></select>
         <button onclick="document.getElementById('archiveFile').click()">📁 选择压缩包…</button>
         <input type="file" id="archiveFile" accept=".zip,.tar,.tar.gz,.tgz" style="display:none" onchange="doArchiveInstall(this)">
+        <div style="border-top:1px solid var(--border);margin:4px 0 10px"></div>
+        <div style="font-size:12px;color:var(--dim);margin-bottom:6px">或选择本地文件夹 / .app（复制进安装目录）：</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="folderPath" placeholder="/Applications/DeepSeek Harness.app" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:9px 12px;font-size:13px">
+          <button onclick="doFolderInstall()">📂 安装文件夹</button>
+        </div>
         <div id="archiveHint" style="font-size:12px;color:var(--dim)"></div>
       </div>
     </div>
@@ -1130,10 +1136,13 @@ function renderTools(){
         : '<span class="badge b-na">手动安装</span>');
     }
     if(t.installed && t._primary){
+      if(t.launchable) acts.push(`<button onclick="launchTool(${idArg})">▶️ 启动</button>`);
       if(t.provider_supported) acts.push(`<button onclick="openProviders(${idArg})">🔌 供应商</button>`);
       acts.push(`<button onclick="openConfig(${idArg})">🧩 配置详情</button>`);
       acts.push(`<button onclick="openExport(${idArg})">📦 导出配置</button>`);
     }
+    const reqWarn = (t.requires && t.requires.ok===false)
+      ? `<br>⚠️ 需要 Node ${esc(t.requires.required)}（当前 ${esc(t.requires.have||'未安装')}）` : '';
     return `<tr style="animation-delay:${Math.min(i*45, 500)}ms"${t._primary?'':' class="dup-row"'}>
       <td><strong${t._primary?'':' style="opacity:.6"'}>${t._primary?'':'├─ '}${esc(t.name)}</strong><div class="sub" style="color:var(--dim);font-size:12px">${esc(t.vendor)}</div></td>
       <td>${badge}</td>
@@ -1141,7 +1150,7 @@ function renderTools(){
       <td class="ver">${esc(latestVersion||'—')}</td>
       <td>${methodCellRow(t)}</td>
       <td><div class="acts">${acts.join('')}</div></td>
-      <td class="notes">${esc(t.notes||'')}${!t.auto_install&&t.install_hint?'<br>💡 '+esc(t.install_hint):''}</td>
+      <td class="notes">${esc(t.notes||'')}${reqWarn}${!t.auto_install&&t.install_hint?'<br>💡 '+esc(t.install_hint):''}</td>
     </tr>`;
   }).join('');
 }
@@ -1203,6 +1212,12 @@ async function act(action, id, prefix, skipConfirm){
       const mgr = d.detail.split(':')[1];
       toast(`⚠️ 缺少环境：${mgr}，请先安装`);
       openEnv(mgr);
+      return;
+    }
+    if((d.detail||'').startsWith('ENV_VERSION:')){
+      const parts = d.detail.split(':');
+      toast('⚠️ '+(parts.slice(4).join(':')||'Node 版本过低'));
+      openEnv(parts[1]);
       return;
     }
     toast('⚠️ '+(d.detail||'操作被拒绝'));
@@ -2135,6 +2150,24 @@ function openArchive(){
   }
   document.getElementById('archiveHint').textContent = '';
   document.getElementById('archiveMask').classList.add('open');
+}
+async function launchTool(id){
+  const r = await apiFetch(`/api/launch/${id}`, {method:'POST'});
+  if(r.status===400){ const d=await r.json(); toast('⚠️ '+(d.detail||'启动失败')); return; }
+  toast('🚀 已启动');
+}
+async function doFolderInstall(){
+  const path = (document.getElementById('folderPath').value||'').trim();
+  if(!path){ toast('请先填写文件夹路径'); return; }
+  const agentId = document.getElementById('archiveAgent').value;
+  const agent = TOOLS.find(t=>t.id===agentId);
+  const r = await apiFetch(`/api/install-folder/${agentId}`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({path})
+  });
+  if(r.status===400){ const d=await r.json(); toast('⚠️ '+(d.detail||'安装被拒绝')); return; }
+  const {task_id} = await r.json();
+  closeModal('archiveMask');
+  openLog(task_id, `📂 文件夹安装 —— ${agent?agent.name:agentId}`);
 }
 async function doArchiveInstall(input){
   const f = input.files[0];

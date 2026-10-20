@@ -75,3 +75,18 @@
 - `.gitattributes` 固定 `*.bat` 为 CRLF；`.gitignore` 忽略 `start.log`、`.venv.broken-*`。
 - 验证：`make check` 117 OK；`bash -n start.sh`；`python -m app.main --port 8611 --no-browser` 冒烟 `/api/tools` = 200、无 DeprecationWarning；`--port abc` 退出码 2。
 - 未验证：`start.bat` 需在真实 Windows 上点一次（winget 安装 / UAC / 端口提示 / 中文显示）。
+
+## 环境检查增强 + DeepSeek Harness（本轮）
+目标：环境检查覆盖 Python / Windows / macOS / git；每个 Agent 的最低 Node 版本动态取 npm 最新 `engines`，每次启动与安装前都校验；手动安装支持压缩包/文件夹，一键安装支持 GitHub 镜像下载并启动。
+
+- [x] 1. `app/engines.py`（新）：`registry.npmjs.org/<pkg>/latest` 取 `engines.node`，缓存 `~/.aac/engines.json`（TTL 6h，失败沿用旧值）；启动后台刷新，扫描/安装前用缓存校验。
+  - 极简 npm semver 判断（`>=` `^` `~` `||` 空格 AND）；无法解析则放行并标 unknown。
+  - `agents.yaml` 可选 `requires: node` 覆盖 registry；不满足时安装返回 `ENV_VERSION:node:<需要>:<当前>`，前端弹环境面板提示升级。
+- [x] 2. 环境面板：新增 `git`、`python`（只读，标注“由启动器负责安装”）、系统信息（OS/arch）；node 行显示各 Agent 要求的最低版本。
+- [x] 3. 手动安装：保留 zip/tar 上传；新增“选择文件夹”（本地路径校验后复制到 `~/.aac/apps/<id>/`，macOS `.app` 保持 bundle）；检测器扩展 `~/.aac/apps` 与 `.app`。
+- [x] 4. GitHub 一键下载：`sources.github: {repo, asset, mirror}`；查 latest → 选平台/架构 asset → 镜像下载 → 可选 sha256 校验 → 安装（zip / exe 静默 / dmg）→ 可选启动；镜像地址作为设置项。
+- [x] 5. 启动按钮：`POST /api/launch/{id}`，仅允许注册表内工具；POSIX `start_new_session`，Windows `DETACHED_PROCESS`；GUI 走 `open` / `start`。
+- [x] 6. DeepSeek Harness 注册：桌面版检测（`/Applications/DeepSeek Harness.app`、`%LOCALAPPDATA%\Programs\DeepSeek Harness`）、userData 配置目录；安装走官方 CDN 直链（macos-arm64 / macos-x64 / windows-x64），GitHub Release 机制保留给其他工具。
+- [x] 7. 验证：新增 `tests/test_engines.py`（14）与 `tests/test_download.py`（19）；`make check` 150 OK；`node --check` OK；8611 冒烟 `/api/env` `/api/tools` `/api/launch`；engines 缓存实测 claude-code `>=22.0.0`、codex `>=16`。
+  - 未验证：dsh 的 DMG/EXE 实际下载安装（体积大且会写入 ~/Applications，等用户点一次）；Windows `/S` 静默安装；GitHub 镜像下载（单测覆盖选择与镜像拼接）。
+  - dsh 官方直链已 HEAD 验证 200：macos-arm64 / macos-x64 / windows-x64。
