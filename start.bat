@@ -50,6 +50,7 @@ if not defined PY (
   if not defined PY (
     echo [提示] 安装完成，但当前窗口还看不到新的 Python。
     echo        请关闭本窗口，重新双击 start.bat。
+    pause
     goto :done
   )
 )
