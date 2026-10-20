@@ -31,4 +31,24 @@ jobs:
         run: python -c "from app import registry; print(len(registry.load_agents()))"
 
       - name: Test
-        run: python -m unittest discover -s tests -v
+        shell: bash
+        run: |
+          set +e
+          python -m unittest discover -s tests -v > test-output.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            python - <<'PY'
+          import pathlib
+          text = pathlib.Path("test-output.log").read_text(encoding="utf-8", errors="replace")
+          keep = []
+          for line in text.splitlines():
+              s = line.strip()
+              if s.startswith(("FAIL:", "ERROR:")):
+                  keep.append(s)
+              elif "Error" in s or "assert" in s.lower():
+                  keep.append(s[:300])
+          msg = " | ".join(keep[:25])[:6000] or text[-3000:]
+          print("::error title=Test failures::" + msg.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
+          PY
+          fi
+          exit "$code"
