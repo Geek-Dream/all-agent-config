@@ -72,7 +72,7 @@ class CCSwitchTests(unittest.TestCase):
         out = ccswitch.import_selected(str(self.db), [{"app_type": "claude", "name": "河图"}])
         self.assertEqual(out["imported"], 1)
         self.assertEqual(self.db.stat().st_mtime_ns, before)   # cc-switch 未被改动
-        items = json.loads(providers.STORE.read_text())["agents"]["claude-code"]
+        items = json.loads(providers.STORE.read_text(encoding="utf-8"))["agents"]["claude-code"]
         self.assertEqual([i["name"] for i in items], ["河图"])
         self.assertEqual(items[0]["base_url"], "https://b.example")
 
@@ -128,7 +128,7 @@ class OpenClawAdapterTests(unittest.TestCase):
                                           "api_key": "sk-k", "model": "k2",
                                           "extra": {"openclaw_api": "openai-responses"}})
         providers.activate("openclaw", new["id"])
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
         slug = providers._slug(new["id"])
         self.assertEqual(data["models"]["providers"][slug]["baseUrl"], "https://k.example")
         self.assertEqual(data["agents"]["defaults"]["model"]["primary"], f"{slug}/k2")

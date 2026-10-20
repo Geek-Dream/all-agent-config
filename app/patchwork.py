@@ -360,13 +360,13 @@ def reapply(agent: dict, log: list[str]) -> dict:
                 failed += 1
                 log.append(f"  ❌ 官方基线缺失  {rel}\n")
                 continue
-            old_text = official.read_text(errors="replace")
-            pat_text = patched_src.read_text(errors="replace")
-            new_text = target.read_text(errors="replace")
+            old_text = official.read_text(encoding="utf-8", errors="replace")
+            pat_text = patched_src.read_text(encoding="utf-8", errors="replace")
+            new_text = target.read_text(encoding="utf-8", errors="replace")
             ported_text = _port(old_text, pat_text, new_text)
             if ported_text is not None and ported_text != new_text:
                 _backup(target, log)
-                target.write_text(ported_text)
+                target.write_text(ported_text, encoding="utf-8")
                 ported += 1
                 log.append(f"  🔄 自动移植  {rel}（修改已迁移到新版本）\n")
             else:

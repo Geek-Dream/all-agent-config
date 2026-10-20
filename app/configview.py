@@ -52,7 +52,7 @@ def _skill_desc(d: Path) -> str:
     if not f.is_file():
         return ""
     try:
-        text = f.read_text(errors="ignore")[:4000]
+        text = f.read_text(encoding="utf-8", errors="ignore")[:4000]
     except Exception:
         return ""
     if text.startswith("---"):
@@ -111,7 +111,7 @@ def _json_items(agent: dict, cat_key: str) -> list[dict]:
         if not f.is_file() or f.suffix != ".json":
             continue
         try:
-            data = json.loads(f.read_text())
+            data = json.loads(f.read_text(encoding="utf-8"))
         except Exception:
             continue
         for c in [k for k in keys if isinstance(data.get(k), dict)]:
@@ -140,7 +140,7 @@ def _toml_items(agent: dict, cat_key: str) -> list[dict]:
         if not f.is_file() or f.suffix != ".toml":
             continue
         try:
-            data = tomllib.loads(f.read_text())
+            data = tomllib.loads(f.read_text(encoding="utf-8"))
         except Exception:
             continue
         for c in [k for k in keys if isinstance(data.get(k), dict)]:
@@ -283,7 +283,7 @@ def toggle(item_id: str, enabled: bool) -> str:
         _check_safe(f)
         if not f.is_file():
             raise FileNotFoundError(str(f))
-        data = json.loads(f.read_text())
+        data = json.loads(f.read_text(encoding="utf-8"))
         on = data.setdefault(container, {})
         off = data.setdefault(DISABLED_NS, {}).setdefault(container, {})
         changed = False
@@ -298,7 +298,7 @@ def toggle(item_id: str, enabled: bool) -> str:
                 data.pop(DISABLED_NS, None)
             try:
                 shutil.copy2(f, f.with_name(f.name + ".aac-bak"))
-                f.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+                f.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             except PermissionError:
                 raise PermissionError(
                     f"没有写入权限：{f}（文件可能属 root 所有，可在终端执行 "

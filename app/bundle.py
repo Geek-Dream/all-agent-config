@@ -277,7 +277,7 @@ def export_bundle(agent_id: str, selected: list[str], conv_days: int | None = No
                     continue
                 if f.get("json_keys"):
                     try:
-                        data = json.loads(src.read_text())
+                        data = json.loads(src.read_text(encoding="utf-8"))
                         payload = {k: data[k] for k in f["json_keys"] if k in data}
                     except Exception:
                         continue

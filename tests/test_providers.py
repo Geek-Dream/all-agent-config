@@ -211,10 +211,10 @@ class ProviderTests(unittest.TestCase):
                                     "extra": {"pi_api": "openai-responses"}})
         providers.activate("pi", new["id"])
         slug = providers._slug(new["id"])
-        models = json.loads((self.home / ".pi/agent/models.json").read_text())
+        models = json.loads((self.home / ".pi/agent/models.json").read_text(encoding="utf-8"))
         self.assertEqual(models["providers"][slug]["baseUrl"], "https://other.example")
         self.assertEqual(models["providers"][slug]["api"], "openai-responses")
-        settings = json.loads((self.home / ".pi/agent/settings.json").read_text())
+        settings = json.loads((self.home / ".pi/agent/settings.json").read_text(encoding="utf-8"))
         self.assertEqual(settings["defaultProvider"], slug)
         self.assertEqual(settings["defaultModel"], "gpt")
 

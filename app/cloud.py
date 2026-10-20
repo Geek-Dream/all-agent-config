@@ -33,7 +33,7 @@ DEFAULT_SETTINGS: dict = {
 
 def load_settings() -> dict:
     try:
-        data = json.loads(SETTINGS_FILE.read_text())
+        data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
     except Exception:
         data = {}
     merged = json.loads(json.dumps(DEFAULT_SETTINGS))

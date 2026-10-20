@@ -141,7 +141,7 @@ def package_dir(agent: dict) -> Path | None:
         pj = d / "package.json"
         if pj.is_file():
             try:
-                if json.loads(pj.read_text()).get("name") == pkg:
+                if json.loads(pj.read_text(encoding="utf-8")).get("name") == pkg:
                     return d
             except Exception:
                 continue
@@ -150,7 +150,7 @@ def package_dir(agent: dict) -> Path | None:
 
 def installed_pkg_version(pdir: Path) -> str | None:
     try:
-        return json.loads((pdir / "package.json").read_text()).get("version")
+        return json.loads((pdir / "package.json").read_text(encoding="utf-8")).get("version")
     except Exception:
         return None
 

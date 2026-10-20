@@ -29,7 +29,7 @@ class BackupBusyError(RuntimeError):
 
 def _load_state() -> dict:
     try:
-        return json.loads(STATE_FILE.read_text())
+        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
@@ -118,7 +118,7 @@ async def auto_backup_loop() -> None:
                     log_path.parent.chmod(0o700)
                 except OSError:
                     pass
-                with open(log_path, "a") as f:
+                with open(log_path, "a", encoding="utf-8") as f:
                     f.write(f"=== {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
                     f.writelines(log)
         except asyncio.CancelledError:
