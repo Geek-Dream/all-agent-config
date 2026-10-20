@@ -50,3 +50,14 @@
 - 前端背景：白天草地 / 花 / 吃草的羊、黑夜无规律闪烁星空 + 半透明面板；主题切换圆形揭幕（纯 CSS `vt-reveal`，0.8s）+ 揭幕期间暂停重动画防卡。
 - 版本：0.1.0 → 0.2.0（pyproject.toml / app/main.py）。
 - 验证：`make check` 116 通过；`node --check` JS OK；Chromium 零报错。
+
+## CI 修复：windows-latest（本轮）
+- 根因 1：`Path.read_text()` / `open()` 未显式 `encoding="utf-8"`。Windows 默认 cp1252，读 AAC 自己写的含中文 JSON 会解码失败（Mac/Linux 默认 UTF-8，本地不可见）。
+  - 修复：backup / bundle / categories / cloud / configview / patchwork 的文本读写统一显式 UTF-8；测试侧同步。
+- 根因 2（修完编码后暴露）：测试对 Windows 路径语义的假设错误。
+  - `Path.home()` 在 Windows 只认 `USERPROFILE`，不认 `HOME` → provider/ccswitch 夹具写到真实用户目录。修复：测试同时 patch 两者。
+  - bundle 导出测试夹具是 posix 布局，需显式伪装本机为 macOS，否则 Windows 上 `from_os == to_os` 不做布局映射。
+  - 分隔符断言写死 `/` → 改为 `os.path.join` / `Path` 规范化。
+- CI：测试失败时通过 `::error` 注解输出失败摘要（公开可读，无需 token）。
+- 验证：`make check` 116 OK；C locale 模拟 116 OK；GitHub Actions ubuntu/macos/windows 三平台全绿（c3831a6）。
+- 教训：不要用 `>` 写入可能是指向真实文件的符号链接；写临时脚本前先 `ls -l` 确认不是链接（本轮曾穿透覆盖 Kimi 内置 python3.12，已用官方 3.2.16 更新包原样恢复并校验哈希）。
