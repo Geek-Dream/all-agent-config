@@ -19,9 +19,16 @@ rem ---------- 1/4 Python ----------
 echo.
 echo [1/4] 检测 Python 3.11+ ...
 set "PY="
-py -3.12 -c "import sys" >nul 2>&1 && set "PY=py -3.12"
-if not defined PY py -3 -c "import sys;raise SystemExit(0 if sys.version_info[:2]>=(3,11) else 1)" >nul 2>&1 && set "PY=py -3"
-if not defined PY python -c "import sys;raise SystemExit(0 if sys.version_info[:2]>=(3,11) else 1)" >nul 2>&1 && set "PY=python"
+py -3.12 -c "import sys" >nul 2>&1
+if not errorlevel 1 set "PY=py -3.12"
+if not defined PY (
+  py -3 -c "import sys;raise SystemExit(0 if sys.version_info[:2]>=(3,11) else 1)" >nul 2>&1
+  if not errorlevel 1 set "PY=py -3"
+)
+if not defined PY (
+  python -c "import sys;raise SystemExit(0 if sys.version_info[:2]>=(3,11) else 1)" >nul 2>&1
+  if not errorlevel 1 set "PY=python"
+)
 
 if not defined PY (
   echo.
@@ -39,19 +46,18 @@ if not defined PY (
   if errorlevel 2 goto :failed
   echo 正在安装 Python 3.12，如弹出 UAC 请允许...
   winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
-  if errorlevel 1 (
-    echo [错误] winget 安装失败，请手动安装。
-    goto :failed
-  )
+  rem winget 在「已安装」时也可能返回非零，统一以重新探测结果为准
   set "PY="
-  py -3.12 -c "import sys" >nul 2>&1 && set "PY=py -3.12"
+  py -3.12 -c "import sys" >nul 2>&1
+  if not errorlevel 1 set "PY=py -3.12"
   if not defined PY if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set PY="%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
   if not defined PY if exist "%ProgramFiles%\Python312\python.exe" set PY="%ProgramFiles%\Python312\python.exe"
   if not defined PY (
-    echo [提示] 安装完成，但当前窗口还看不到新的 Python。
-    echo        请关闭本窗口，重新双击 start.bat。
+    echo [错误] Python 仍未就绪：安装可能被取消，或新 Python 尚未进入当前窗口。
+    echo        请关闭本窗口后重新双击 start.bat；若仍不行请手动安装：
+    echo        https://www.python.org/downloads/
     pause
-    goto :done
+    goto :failed
   )
 )
 >>"%LOG%" echo [%DATE% %TIME%] PY=%PY%
