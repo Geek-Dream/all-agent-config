@@ -129,6 +129,15 @@ aac                    # 启动并自动打开 http://127.0.0.1:8600
 - **跨机同步**：`~/.pi/pi-extensions` 与 `~/.pi/agent/settings.json` 都在 Pi 的导出分类里，所以导出 `.aac` 带到 Windows 导入后，扩展和注册一起回来（路径自动映射）
 - **已知边界**：`pi-fusion` 在外援干活那几秒会占用工作行显示「副驾 模型 12s $0.003」，此时鲸鱼妹让位，外援结束自动回来
 
+### 状态栏编辑器（Pi 扩展 aac-footer + Claude Code statusLine）
+- 状态栏从「源码里写死的三行」变成**配置驱动**：13 个 tag（模型 / 思考强度 / 内存 / CPU / 命中率 / 字/秒 / 已用 tokens / 缓存倒计时 / git 分支 / 目录 / 会话名 / 时间 / 成本¥），最多 3 行、每行最多 8 个，分隔符四选一（`│` / 空格 / `/` / `·`）
+- 设置页「📊 状态栏编辑器」右侧实时预览，勾 tag 就插进去；三套预设：性能三行、极简一行、全部信息
+- 配置在 `~/.aac/footer.json`（可用 `AAC_FOOTER_CONFIG` 覆盖），**改完 1.5 秒内生效、不用重启**；文件缺失/损坏/形状不对一律回落默认模板，绝不白屏
+- **一个渲染核心、两个宿主**：Pi 走插件层 `assets/pi-footer` → `~/.pi/pi-extensions/aac-footer`（装的时候自动关掉抢同一行的 `wl-setup.rmbFooter` 和 `statusline-pi`，卸载原样还回去）；Claude Code 走 `statusLine` + `~/.aac/bin/aac-footer` 包装脚本（换机器重装时重新生成，不写死解释器路径）
+- 拿不到的数据**不编**：claude 的 statusLine JSON 里没有 token 生成耗时，就整段不出「字/秒」；provider 没配单价时成本显示「¥— 未计价」而不是 `¥0.00`
+- 命令：`python -m app.footer_ext --install` / `--uninstall`；`python -m app.footer` 看当前配置与预览；`echo '{...}' | python -m app.footer --stdin` 模拟 claude 输入
+- 已知边界：Codex TUI 没有 statusline 回调点，要走程序补丁，排在最后
+
 ## 目录结构
 
 ```

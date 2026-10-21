@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from urllib.parse import urlsplit
 
-from . import archive, backup, bundle, categories as catmod, ccswitch, cloud, configview, detect, download, engines, env as envmod, footer, installer, launch, localize, meta, patchwork, providers, registry, whale
+from . import archive, backup, bundle, categories as catmod, ccswitch, cloud, configview, detect, download, engines, env as envmod, footer, footer_ext, installer, launch, localize, meta, patchwork, providers, registry, whale
 from .paths import relative_target
 from .safefs import ensure_private_dir
 
@@ -1033,6 +1033,36 @@ async def api_whale(req: WhaleReq) -> dict:
         return await asyncio.to_thread(whale.uninstall)
     if req.action == "status":
         return {"ok": True, "status": await asyncio.to_thread(whale.status)}
+    raise HTTPException(400, f"未知操作：{req.action}")
+
+
+@app.get("/api/footer/ext")
+def api_footer_ext_status() -> dict:
+    return footer_ext.status()
+
+
+@app.get("/api/footer/ext/claude")
+def api_footer_claude_status() -> dict:
+    return footer_ext.claude_status()
+
+
+@app.post("/api/footer/ext/claude")
+async def api_footer_claude(req: WhaleReq) -> dict:
+    if req.action == "install":
+        return await asyncio.to_thread(footer_ext.claude_install)
+    if req.action == "uninstall":
+        return await asyncio.to_thread(footer_ext.claude_uninstall)
+    return {"ok": True, "status": await asyncio.to_thread(footer_ext.claude_status)}
+
+
+@app.post("/api/footer/ext")
+async def api_footer_ext(req: WhaleReq) -> dict:
+    if req.action == "install":
+        return await asyncio.to_thread(footer_ext.install)
+    if req.action == "uninstall":
+        return await asyncio.to_thread(footer_ext.uninstall)
+    if req.action == "status":
+        return {"ok": True, "status": await asyncio.to_thread(footer_ext.status)}
     raise HTTPException(400, f"未知操作：{req.action}")
 
 

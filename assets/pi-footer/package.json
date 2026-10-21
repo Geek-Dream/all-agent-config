@@ -1,0 +1,7 @@
+{
+  "name": "aac-footer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "tag 化状态栏：显示哪些段、什么顺序、什么分隔符都读 ~/.aac/footer.json",
+  "extensions": ["extensions/footer.ts"]
+}

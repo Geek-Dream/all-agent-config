@@ -163,7 +163,7 @@ def sample_stats() -> dict:
         "speed": 76.5,
         "tokens": 88528,
         "cache_left_ms": -1,
-        "cwd": "~/dev/proj",
+        "cwd": "proj",
         "git": "main",
         "session": "会话 fix-footer",
         "time": "14:32",
@@ -190,10 +190,11 @@ def render_tag(tag: str, stats: dict) -> str:
         return f"⊙ {int(value)}%" if value is not None else ""
     if tag == "speed":
         value = stats.get("speed")
-        return f"{float(value):.1f} 字/秒" if value is not None else "— 字/秒"
+        # 拿不到速度就整段不出（claude 状态栏给不了 token 生成耗时）
+        return f"{float(value):.1f} 字/秒" if value is not None else ""
     if tag == "tokens":
         value = stats.get("tokens")
-        return f"已用 tokens：{int(value):,}" if value is not None else "已用 tokens：—"
+        return f"已用 tokens：{int(value):,}" if value is not None else ""
     if tag == "cache_time":
         left = stats.get("cache_left_ms")
         if left is None:
@@ -203,7 +204,8 @@ def render_tag(tag: str, stats: dict) -> str:
         seconds = int(left // 1000)
         return f"⏳ 缓存 {seconds // 60}m{seconds % 60:02d}s"
     if tag == "cwd":
-        return str(stats.get("cwd") or "")
+        value = stats.get("cwd")
+        return f"📂 {short_path(str(value))}" if value else ""
     if tag == "git":
         value = stats.get("git")
         return f"⎇ {value}" if value else ""
@@ -214,7 +216,10 @@ def render_tag(tag: str, stats: dict) -> str:
         return str(stats.get("time") or time.strftime("%H:%M"))
     if tag == "cost":
         value = stats.get("cost")
-        return f"¥{float(value):.2f}" if value is not None else ""
+        if value is None:
+            return ""
+        # provider 没配单价时算出来是 0，这时候不能说"花了一分钱"——如实写未计价
+        return f"¥{float(value):.2f}" if float(value) > 0 else "¥— 未计价"
     return ""
 
 
@@ -253,3 +258,192 @@ def catalog(agent_id: str | None = None) -> dict:
         "config_path": str(CONFIG_FILE),
         "exists": CONFIG_FILE.is_file(),
     }
+
+
+# ---------------------------------------------------------------- 跨工具渲染
+
+def stats_from_claude_payload(payload: dict) -> dict:
+    """Claude Code 通过 stdin 传给 statusLine 命令的 JSON → 我们的 stats 形状。
+
+    没有的字段留空（渲染时会跳过），绝不编造数字：这里显示的每个值都来自
+    真实数据或本机采样。
+    """
+    payload = payload if isinstance(payload, dict) else {}
+    model = (payload.get("model") or {}) if isinstance(payload.get("model"), dict) else {}
+    workspace = (payload.get("workspace") or {}) if isinstance(payload.get("workspace"), dict) else {}
+    cost = (payload.get("cost") or {}) if isinstance(payload.get("cost"), dict) else {}
+    cwd = workspace.get("current_dir") or payload.get("cwd") or ""
+    stats = {
+        "model": model.get("display_name") or model.get("id") or "",
+        "thinking": "",           # claude 状态栏拿不到思考等级
+        "cwd": short_path(str(cwd)),
+        "git": _git_branch(str(cwd)),
+        "session": str(payload.get("session_id") or "")[:8],
+        "time": time.strftime("%H:%M"),
+        "cost": None,
+        "tokens": None,
+        "speed": None,
+        "cache_hit": None,
+        "cache_left_ms": None,
+        "mem": None,
+        "cpu": None,
+    }
+    try:
+        total = cost.get("total_cost_usd")
+        if isinstance(total, (int, float)):
+            stats["cost"] = float(total) * 7.25
+    except Exception:  # noqa: BLE001
+        pass
+    mem = mem_percent()
+    if mem is not None:
+        stats["mem"] = mem
+    usage = _last_usage_from_transcript(payload.get("transcript_path"))
+    if usage:
+        stats["tokens"] = usage.get("tokens")
+        stats["cache_hit"] = usage.get("cache_hit")
+        stats["cache_left_ms"] = usage.get("cache_left_ms")
+    return stats
+
+
+def mem_percent() -> float | None:
+    """内存占用百分比。macOS 用 vm_stat，Linux 用 /proc/meminfo，读不到就返回 None。
+
+    不用「1 - 空闲率」的粗暴算法：macOS 会故意把空闲页压到极低，
+    os.freemem 那条路永远显示 99%，看着像机器要炸了其实没事。
+    """
+    import subprocess
+    import sys
+
+    if sys.platform == "darwin":
+        try:
+            out = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=1).stdout
+        except Exception:  # noqa: BLE001
+            return None
+        import re
+
+        page = re.search(r"page size of (\d+) bytes", out)
+        if not page:
+            return None
+        page_size = int(page.group(1))
+
+        def pages(label: str) -> int:
+            found = re.search(rf"^{label}:\s+(\d+)\.", out, re.MULTILINE)
+            return int(found.group(1)) if found else 0
+
+        used = pages("Pages active") + pages("Pages wired down") + pages("Pages occupied by compressor")
+        try:
+            total = os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
+        except (ValueError, OSError):
+            return None
+        if total <= 0 or used <= 0:
+            return None
+        return max(0.0, min(100.0, used * page_size / total * 100))
+    if sys.platform.startswith("linux"):
+        try:
+            info = Path("/proc/meminfo").read_text(encoding="utf-8")
+        except OSError:
+            return None
+        values = {}
+        for line in info.splitlines():
+            key, _, rest = line.partition(":")
+            values[key.strip()] = rest.strip().split(" ")[0]
+        try:
+            total = int(values.get("MemTotal", "0"))
+            available = int(values.get("MemAvailable", "0"))
+        except ValueError:
+            return None
+        if total <= 0:
+            return None
+        return max(0.0, min(100.0, (total - available) / total * 100))
+    return None  # Windows 没顺手的方式，宁可不显示也不瞎猜
+
+
+def short_path(value: str) -> str:
+    """只保留最后一级目录名：状态栏宽度有限，整条路径没意义。"""
+    cleaned = value.rstrip("/\\")
+    return os.path.basename(cleaned) or cleaned
+
+
+def _git_branch(cwd: str) -> str:
+    import subprocess
+
+    if not cwd or not os.path.isdir(cwd):
+        return ""
+    try:
+        out = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd,
+                             capture_output=True, text=True, timeout=1)
+    except Exception:  # noqa: BLE001
+        return ""
+    return out.stdout.strip() if out.returncode == 0 else ""
+
+
+def _last_usage_from_transcript(path) -> dict | None:
+    """从 claude 的 transcript（jsonl）里捞最近一条助手消息的用量。
+
+    这是唯一能拿到「已用 tokens / 缓存命中」的办法：statusLine 的 JSON 里没有。
+    文件不存在或格式变了就返回 None，状态栏显示占位符而不是假数字。
+    """
+    if not path:
+        return None
+    try:
+        with open(str(path), "r", encoding="utf-8", errors="replace") as handle:
+            lines = handle.readlines()[-200:]
+    except OSError:
+        return None
+    for raw in reversed(lines):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            entry = json.loads(raw)
+        except Exception:  # noqa: BLE001
+            continue
+        message = entry.get("message") if isinstance(entry, dict) else None
+        usage = (message or {}).get("usage") if isinstance(message, dict) else None
+        if not isinstance(usage, dict):
+            continue
+        try:
+            input_tokens = int(usage.get("input_tokens") or 0)
+            cache_read = int(usage.get("cache_read_input_tokens") or 0)
+            cache_write = int(usage.get("cache_write_input_tokens") or 0)
+            output_tokens = int(usage.get("output_tokens") or 0)
+        except (TypeError, ValueError):
+            continue
+        total = input_tokens + cache_read + cache_write + output_tokens
+        hit = (cache_read / (input_tokens + cache_read) * 100) if (input_tokens + cache_read) else 0.0
+        return {"tokens": total, "cache_hit": hit,
+                "cache_left_ms": 5 * 60 * 1000 if (cache_read or cache_write) else -1}
+    return None
+
+
+def render_from_stdin(agent_id: str | None = None) -> str:
+    """给 claude 的 statusLine 命令用：stdin 读 JSON，stdout 输出状态栏。"""
+    import sys
+
+    raw = sys.stdin.read() if not sys.stdin.isatty() else ""
+    try:
+        payload = json.loads(raw) if raw.strip() else {}
+    except Exception:  # noqa: BLE001 输入不是 JSON 也要给出一行可用状态栏
+        payload = {}
+    return render_text(stats=stats_from_claude_payload(payload), agent_id=agent_id)
+
+
+def _main(argv: list[str] | None = None) -> int:
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="状态栏渲染（给 claude 的 statusLine 用）")
+    parser.add_argument("--stdin", action="store_true", help="从 stdin 读 claude 的 JSON")
+    parser.add_argument("--agent", default=None, help="按哪个工具的覆盖配置渲染")
+    parser.add_argument("--print-config", action="store_true", help="打印当前配置与预览")
+    args = parser.parse_args(argv)
+    if args.print_config:
+        sys.stdout.write(render_text(agent_id=args.agent) + "\n")
+        sys.stdout.write(f"配置：{CONFIG_FILE}\n")
+        return 0
+    sys.stdout.write(render_from_stdin(args.agent) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

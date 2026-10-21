@@ -832,6 +832,12 @@
               <button onclick="footerReset()">↺ 恢复默认模板</button>
               <span id="footer_msg" style="color:var(--dim);font-size:12px"></span>
             </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+              <span id="footer_ext_state" style="font-size:12px;color:var(--dim)"></span>
+              <button id="footer_ext_btn" onclick="footerExtToggle()">检查中…</button>
+              <span id="footer_claude_state" style="font-size:12px;color:var(--dim)"></span>
+              <button id="footer_claude_btn" onclick="footerClaudeToggle()">检查中…</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2036,6 +2042,8 @@ async function openSettings(){
   loadI18n();
   loadWhale();
   footerLoad();
+  footerExtLoad();
+  footerClaudeLoad();
   document.getElementById('settingsMask').classList.add('open');
 }
 function settingsPayload(){
@@ -2163,6 +2171,54 @@ function footerReset(){
   footerPreset('perf');
   document.getElementById('footer_msg').textContent = '已套用默认模板，点保存生效';
 }
+async function footerExtLoad(){
+  const state = document.getElementById('footer_ext_state');
+  const btn = document.getElementById('footer_ext_btn');
+  if(!state||!btn) return;
+  let st;
+  try{ st = await (await apiFetch('/api/footer/ext')).json(); }catch(e){ state.textContent='状态读取失败'; return; }
+  state.textContent = st.active ? '扩展：已启用（重启 pi 生效）'
+    : (st.installed ? '扩展：已复制，未注册' : '扩展：未安装（现在只在设置页能预览）');
+  state.style.color = st.active ? 'var(--green, #3fb950)' : 'var(--dim)';
+  if(st.conflicts && st.conflicts.length) state.title = '同时在抢状态栏：' + st.conflicts.join('、') + '（安装时会自动关掉）';
+  btn.textContent = st.active ? '📊 卸下扩展' : '📊 装到 pi';
+  btn.dataset.active = st.active ? '1' : '';
+}
+async function footerClaudeLoad(){
+  const state = document.getElementById('footer_claude_state');
+  const btn = document.getElementById('footer_claude_btn');
+  if(!state||!btn) return;
+  let st;
+  try{ st = await (await apiFetch('/api/footer/ext/claude')).json(); }catch(e){ state.textContent='claude 状态读取失败'; return; }
+  state.textContent = st.installed ? 'claude 状态栏：已挂上'
+    : (st.installed_for_other ? 'claude 状态栏：用的是别的命令（装的时候会先存下来）' : 'claude 状态栏：未挂');
+  state.style.color = st.installed ? 'var(--green, #3fb950)' : 'var(--dim)';
+  btn.textContent = st.installed ? '📊 从 claude 卸下' : '📊 挂到 claude';
+  btn.dataset.active = st.installed ? '1' : '';
+}
+async function footerClaudeToggle(){
+  const btn = document.getElementById('footer_claude_btn');
+  const active = btn.dataset.active === '1';
+  const msg = document.getElementById('footer_msg');
+  try{
+    const r = await (await apiFetch('/api/footer/ext/claude',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action: active ? 'uninstall' : 'install'})})).json();
+    msg.textContent = r.ok ? '✅ ' + (r.message||'完成') : '❌ ' + (r.message||'失败');
+  }catch(e){ msg.textContent = '❌ ' + e.message; }
+  footerClaudeLoad();
+}
+async function footerExtToggle(){
+  const btn = document.getElementById('footer_ext_btn');
+  const active = btn.dataset.active === '1';
+  const msg = document.getElementById('footer_msg');
+  try{
+    const r = await (await apiFetch('/api/footer/ext',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action: active ? 'uninstall' : 'install'})})).json();
+    msg.textContent = r.ok ? '✅ ' + (r.message||'完成') : '❌ ' + (r.message||'失败');
+  }catch(e){ msg.textContent = '❌ ' + e.message; }
+  footerExtLoad();
+}
+
 async function footerSave(){
   try{
     const r = await apiFetch('/api/footer',{method:'POST',
