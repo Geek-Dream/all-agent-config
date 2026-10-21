@@ -446,15 +446,26 @@ def _remap_entry_rel(agent: dict, manifest: dict, rel_home: str) -> str:
     return _map_rel_home(manifest.get("agent_id"), rel, manifest.get("source_home"))
 
 
-def _replace_path_prefix(text: str, src: str, dst: str, target_os: str) -> str:
-    """替换绝对路径前缀，并把紧随其后的路径分隔符规范成目标系统。"""
+def _replace_path_prefix(text: str, src: str, dst: str, target_os: str,
+                         json_escape: bool = False) -> str:
+    """替换绝对路径前缀，并把紧随其后的路径分隔符规范成目标系统。
+
+    json_escape=True 时把写进正文的反斜杠翻倍：目标是 Windows 而文件本身是 JSON，
+    直接写单个 \\ 会变成非法转义（`Invalid \\escape`），把 settings.json 写坏。
+    """
     if not src or not dst:
         return text
     variants = [(src, False)]
     if "\\" in src:
         variants.append((src.replace("\\", "\\\\"), True))
     for value, escaped in variants:
-        target = dst.replace("\\", "\\\\") if escaped else dst
+        # escaped 变体本身就已经是文件里那种双反斜杠写法，不要再翻倍
+        if escaped:
+            target = dst.replace("\\", "\\\\")
+        elif json_escape:
+            target = dst.replace("\\", "\\\\")
+        else:
+            target = dst
         pattern = re.escape(value) + r"([A-Za-z0-9_.\-/\\]*)"
 
         def repl(match: re.Match) -> str:
@@ -466,6 +477,8 @@ def _replace_path_prefix(text: str, src: str, dst: str, target_os: str) -> str:
                     tail = tail.replace("\\\\", "\0").replace("\\", "/").replace("\0", "/")
                 else:
                     tail = tail.replace("\\", "/")
+            if json_escape and not escaped:
+                tail = tail.replace("\\", "\\\\")
             return target + tail
 
         text = re.sub(pattern, repl, text)
@@ -473,7 +486,8 @@ def _replace_path_prefix(text: str, src: str, dst: str, target_os: str) -> str:
 
 
 def _remap_text(text: str, src_home: str | None,
-                pairs: list[tuple[str, str]] | None = None) -> str:
+                pairs: list[tuple[str, str]] | None = None,
+                json_escape: bool = False) -> str:
     """把文本里的源机器绝对路径替换为本机路径（含 JSON 转义形式）。
 
     pairs 优先替换更长的配置目录（如 .config/opencode），再兜底替换 home。
@@ -484,10 +498,38 @@ def _remap_text(text: str, src_home: str | None,
     target_os = _os_name()
     dst = str(HOME)
     for src, target in sorted(pairs or [], key=lambda p: len(p[0]), reverse=True):
-        text = _replace_path_prefix(text, src, target, target_os)
+        text = _replace_path_prefix(text, src, target, target_os, json_escape)
     if src_home != dst:
-        text = _replace_path_prefix(text, src_home, dst, target_os)
+        text = _replace_path_prefix(text, src_home, dst, target_os, json_escape)
     return text
+
+
+def _remap_json_text(text: str, src_home: str | None,
+                     pairs: list[tuple[str, str]] | None = None) -> str:
+    """JSON 正文的路径映射：先按普通文本换，再校验；转义坏了就按 JSON 规则重来。
+
+    最后仍不合法就原样返回 —— 宁可不映射路径，也绝不给用户写一个打不开的配置。
+    """
+    out = _remap_text(text, src_home, pairs)
+    try:
+        json.loads(out)
+        return out
+    except ValueError:
+        pass
+    out = _remap_text(text, src_home, pairs, json_escape=True)
+    try:
+        json.loads(out)
+        return out
+    except ValueError:
+        return text
+
+
+def _remap_file_text(text: str, suffix: str, src_home: str | None,
+                     pairs: list[tuple[str, str]] | None = None) -> str:
+    """按文件类型选映射策略：.json 走转义安全版，其它按纯文本处理。"""
+    if suffix.lower() == ".json":
+        return _remap_json_text(text, src_home, pairs)
+    return _remap_text(text, src_home, pairs)
 
 
 _TEXT_EXTS = {".json", ".jsonl", ".toml", ".md", ".txt", ".yaml", ".yml", ".sh",
@@ -565,7 +607,8 @@ def _import_apply(path: Path, selected: list[str], log: list[str]) -> None:
                     data = zf.read(e["arc"])
                     if target.suffix.lower() in _TEXT_EXTS:
                         try:
-                            data = _remap_text(data.decode("utf-8"), src_home, pairs).encode("utf-8")
+                            data = _remap_file_text(data.decode("utf-8"), target.suffix,
+                                                    src_home, pairs).encode("utf-8")
                         except UnicodeDecodeError:
                             pass
                     target.write_bytes(data)
@@ -584,7 +627,7 @@ def _import_apply(path: Path, selected: list[str], log: list[str]) -> None:
                     continue
                 target.parent.mkdir(parents=True, exist_ok=True)
                 if e.get("json_keys"):
-                    payload = json.loads(_remap_text(
+                    payload = json.loads(_remap_json_text(
                         zf.read(e["arc"]).decode("utf-8", "replace"), src_home, pairs))
                     existing: dict = {}
                     if target.is_file():
@@ -603,7 +646,8 @@ def _import_apply(path: Path, selected: list[str], log: list[str]) -> None:
                     data = zf.read(e["arc"])
                     if target.suffix.lower() in _TEXT_EXTS:
                         try:
-                            data = _remap_text(data.decode("utf-8"), src_home, pairs).encode("utf-8")
+                            data = _remap_file_text(data.decode("utf-8"), target.suffix,
+                                                    src_home, pairs).encode("utf-8")
                         except UnicodeDecodeError:
                             pass
                     target.write_bytes(data)

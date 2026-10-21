@@ -224,3 +224,33 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(manifest["path_platform"], "Windows")
         self.assertEqual(manifest["categories"]["system"]["entries"][0]["rel_home"],
                          "AppData/Roaming/opencode/opencode.json")
+
+
+class JsonPathRemapTests(unittest.TestCase):
+    """Mac→Win 导入时，JSON 里的绝对路径必须映射成合法 JSON（不能写坏 settings.json）。"""
+
+    def test_json_remap_keeps_json_valid_and_maps_path(self):
+        from pathlib import Path as _P
+        with patch.object(bundle, "_os_name", return_value="Windows"), \
+                patch.object(bundle, "HOME", _P(r"C:\Users\wlwin")):
+            raw = ('{\n  "packages": ["npm:statusline-pi",\n'
+                   '    "/Users/wl/.pi/pi-extensions/aac-whale"]\n}\n')
+            out = bundle._remap_json_text(raw, "/Users/wl", [])
+        data = json.loads(out)                     # 关键：必须能解析
+        self.assertEqual(data["packages"][0], "npm:statusline-pi")
+        self.assertEqual(data["packages"][1],
+                         r"C:\Users\wlwin\.pi\pi-extensions\aac-whale")
+
+    def test_json_remap_falls_back_to_original_if_unfixable(self):
+        with patch.object(bundle, "_os_name", return_value="Windows"), \
+                patch.object(bundle, "HOME", Path(r"C:\Users\wlwin")):
+            # 正文本来就坏了：宁可原样返回，也不要写出更坏的文件
+            broken = '{"a": "/Users/wl/x"} trailing garbage'
+            self.assertEqual(bundle._remap_json_text(broken, "/Users/wl", []), broken)
+
+    def test_markdown_remap_uses_plain_backslash(self):
+        with patch.object(bundle, "_os_name", return_value="Windows"), \
+                patch.object(bundle, "HOME", Path(r"C:\Users\wlwin")):
+            out = bundle._remap_file_text("path: /Users/wl/.pi/a.md", ".md",
+                                          "/Users/wl", [])
+        self.assertEqual(out, r"path: C:\Users\wlwin\.pi\a.md")
