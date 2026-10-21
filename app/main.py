@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from urllib.parse import urlsplit
 
-from . import archive, backup, bundle, categories as catmod, ccswitch, cloud, configview, detect, download, engines, env as envmod, installer, meta, patchwork, providers, registry
+from . import archive, backup, bundle, categories as catmod, ccswitch, cloud, configview, detect, download, engines, env as envmod, installer, launch, localize, meta, patchwork, providers, registry, whale
 from .paths import relative_target
 from .safefs import ensure_private_dir
 
@@ -199,7 +199,7 @@ def _prune_tasks() -> None:
 
 
 async def _run_task(tid: str, argv: list[str] | None, sudo_password: str | None,
-                    tail_hint: str | None = None) -> None:
+                    tail_hint: str | None = None, agent_id: str | None = None) -> None:
     log: list[str] = TASKS[tid]["log"]  # type: ignore[index]
     try:
         if argv is None:
@@ -209,11 +209,47 @@ async def _run_task(tid: str, argv: list[str] | None, sudo_password: str | None,
         code = await installer.run(argv, log, sudo_password)
         if tail_hint:
             log.append("\n" + tail_hint + "\n")
+        if code == 0 and agent_id:
+            await _auto_localize(agent_id, log)
         _finish_task(tid, "done" if code == 0 else "failed")
         log.append(f"\n[exit code: {code}]\n")
     except Exception as e:  # noqa: BLE001
         log.append(f"\n[error] {e}\n")
         _finish_task(tid, "failed")
+
+
+def _i18n_prefs() -> tuple[bool, dict]:
+    """安全读取汉化设置。
+
+    设置来自前端 JSON，形状可能是任何东西（`{"agents": []}` 之类），
+    这里一律降级成默认值——汉化是附加功能，绝不能因此把安装或启动弄成失败。
+    """
+    try:
+        raw = cloud.load_settings().get("i18n")
+    except Exception:  # noqa: BLE001
+        return True, {}
+    if not isinstance(raw, dict):
+        return True, {}
+    auto = raw.get("auto", True)
+    agents = raw.get("agents")
+    return (auto if isinstance(auto, bool) else True,
+            agents if isinstance(agents, dict) else {})
+
+
+async def _auto_localize(agent_id: str, log: list[str]) -> None:
+    """安装/更新成功后自动重打汉化补丁（升级会覆盖掉旧补丁）。"""
+    try:
+        auto, agent_prefs = _i18n_prefs()
+        if not auto or agent_prefs.get(agent_id, True) is False:
+            return
+        agent = registry.get_agent(agent_id)
+        if not agent or not agent.get("i18n"):
+            return
+        result = await asyncio.to_thread(localize.ensure, agent)
+        if result:
+            log.append("\n[汉化] " + str(result.get("message", "")) + "\n")
+    except Exception as e:  # noqa: BLE001 - 汉化失败不影响安装结果
+        log.append(f"\n[汉化] 跳过：{e}\n")
 
 
 @app.get("/")
@@ -441,7 +477,7 @@ async def api_install(agent_id: str, req: ActionReq) -> dict:
         argv = (installer.build_brew_argv(agent, "install") if mgr == "brew"
                 else installer.build_manager_argv(mgr, pkg, "install"))
         tid = _new_task()
-        asyncio.create_task(_run_task(tid, argv, None))
+        asyncio.create_task(_run_task(tid, argv, None, agent_id=agent_id))
         return {"task_id": tid}
     if req.scope == "global" and not installer.npm_prefix_writable(registry.get_agent(agent_id).get("command")) and not req.sudo_password:
         raise HTTPException(400, "该工具安装在系统目录，需要 sudo 密码：请在弹窗中输入")
@@ -450,7 +486,7 @@ async def api_install(agent_id: str, req: ActionReq) -> dict:
         raise HTTPException(400, "该工具安装在系统目录，需要 sudo 密码：请在弹窗中输入")
     tid = _new_task()
     hint = installer.user_prefix_path_hint() if req.scope == "user" else None
-    asyncio.create_task(_run_task(tid, argv, _sudo_arg(req, need_sudo), hint))
+    asyncio.create_task(_run_task(tid, argv, _sudo_arg(req, need_sudo), hint, agent_id=agent_id))
     return {"task_id": tid}
 
 
@@ -458,19 +494,115 @@ class FolderReq(BaseModel):
     path: str
 
 
+class LaunchReq(BaseModel):
+    mode: str = "normal"
+    resume: bool = False
+    terminal: str | None = None
+    custom_terminal: str | None = None
+    cwd: str | None = None
+    confirm_ack: bool = False
+
+
+@app.get("/api/launch/options")
+def api_launch_options() -> dict:
+    settings = cloud.load_settings()
+    launch_settings = settings.get("launch") or {}
+    launch_agents: dict = {}
+    for agent in registry.load_agents():
+        launch_spec = agent.get("launch")
+        if not isinstance(launch_spec, dict):
+            continue
+        target = detect.launch_target(agent)
+        modes = []
+        for mode_id, mode_spec in (launch_spec.get("modes") or {}).items():
+            modes.append({
+                "id": mode_id,
+                "name": mode_spec.get("name", mode_id),
+                "args": mode_spec.get("args", []),
+                "supported": mode_spec.get("supported") is not False,
+                "confirm": bool(mode_spec.get("confirm")),
+                "warning": mode_spec.get("warning"),
+                "note": mode_spec.get("note"),
+                "reason": mode_spec.get("reason"),
+            })
+        launch_agents[agent["id"]] = {
+            "launchable": target is not None,
+            "target": str(target) if target else None,
+            "modes": modes,
+            "resume": bool(launch_spec.get("resume_args")),
+        }
+    return {
+        "terminals": launch.detect_terminals(),
+        "default_terminal": launch.default_terminal_id(),
+        "agents": launch_agents,
+        "settings": {
+            "terminal": launch_settings.get("terminal", "auto"),
+            "custom_terminal": launch_settings.get("custom_terminal", ""),
+            "resume": launch_settings.get("resume", False),
+            "modes": launch_settings.get("modes", {}),
+            "cwd": launch_settings.get("cwd", ""),
+        },
+    }
+
+
 @app.post("/api/launch/{agent_id}")
-async def api_launch(agent_id: str) -> dict:
+async def api_launch(agent_id: str, req: LaunchReq | None = None) -> dict:
+    req = req or LaunchReq()
     agent = registry.get_agent(agent_id)
     if not agent:
-        raise HTTPException(404, "unknown agent")
-    target = detect.launch_target(agent)
-    if target is None:
-        raise HTTPException(400, "未找到可启动的程序，请先安装")
+        raise HTTPException(404, "未找到该工具")
+    launch_spec = agent.get("launch")
+    if not isinstance(launch_spec, dict):
+        target = detect.launch_target(agent)
+        if target is None:
+            raise HTTPException(400, "未找到可启动的程序，请先安装")
+        try:
+            _spawn(target)
+        except OSError as e:
+            raise HTTPException(400, f"启动失败：{e}") from e
+        return {"ok": True, "legacy": True}
+
+    modes = launch_spec.get("modes") or {}
+    mode_spec = modes.get(req.mode) if isinstance(modes, dict) else None
+    if not isinstance(mode_spec, dict):
+        raise HTTPException(400, f"未知启动模式：{req.mode}")
+    if mode_spec.get("supported") is False:
+        raise HTTPException(400, mode_spec.get("reason") or "该工具不支持此启动模式")
+    if mode_spec.get("confirm") and not req.confirm_ack:
+        raise HTTPException(400, "危险模式需要显式确认")
+
+    # 启动前保汉化（升级后补丁会丢，这里兜底；失败不影响启动）
+    await _ensure_i18n(agent)
+
+    settings = cloud.load_settings()
+    launch_settings = dict(settings.get("launch") or {})
+    if req.terminal is not None:
+        launch_settings["terminal"] = req.terminal
+    if req.custom_terminal is not None:
+        launch_settings["custom_terminal"] = req.custom_terminal.strip()
+    if req.cwd is not None:
+        launch_settings["cwd"] = req.cwd
     try:
-        _spawn(target)
-    except OSError as e:
-        raise HTTPException(400, f"启动失败：{e}") from e
-    return {"ok": True, "target": str(target)}
+        plan = launch.plan_launch(agent, req.mode, req.resume, launch_settings,
+                                  req.cwd)
+    except (OSError, ValueError) as e:
+        raise HTTPException(400, str(e)) from e
+    result = await asyncio.to_thread(launch.run_plan, plan)
+    if not result.get("ok"):
+        raise HTTPException(400, result.get("error") or "启动失败")
+
+    last_modes = launch_settings.get("modes")
+    last_modes = dict(last_modes) if isinstance(last_modes, dict) else {}
+    last_modes[agent_id] = req.mode
+    cloud.save_settings({"launch": {
+        "terminal": launch_settings.get("terminal") or plan["terminal"],
+        "custom_terminal": launch_settings.get("custom_terminal", ""),
+        "resume": req.resume,
+        "cwd": plan["cwd"],
+        "modes": last_modes,
+    }})
+    return {"ok": True, "terminal": plan["terminal"],
+            "command": plan["command"], "argv": plan["argv"], "cwd": plan["cwd"]}
 
 
 @app.post("/api/install-folder/{agent_id}")
@@ -520,14 +652,14 @@ async def api_update(agent_id: str, req: ActionReq) -> dict:
         argv = (installer.build_brew_argv(agent, "update") if mgr == "brew"
                 else installer.build_manager_argv(mgr, pkg, "update"))
         tid = _new_task()
-        asyncio.create_task(_run_task(tid, argv, None))
+        asyncio.create_task(_run_task(tid, argv, None, agent_id=agent_id))
         return {"task_id": tid}
     target_prefix = _detected_update_prefix(agent, req.prefix)
     argv, need_sudo = installer.build_update_argv(agent, req.scope, target_prefix)
     if need_sudo and not installer.IS_WINDOWS and not req.sudo_password:
         raise HTTPException(400, "该工具安装在系统目录，需要 sudo 密码：请在弹窗中输入")
     tid = _new_task()
-    asyncio.create_task(_run_task(tid, argv, _sudo_arg(req, need_sudo)))
+    asyncio.create_task(_run_task(tid, argv, _sudo_arg(req, need_sudo), agent_id=agent_id))
     return {"task_id": tid}
 
 
@@ -767,6 +899,8 @@ class SettingsReq(BaseModel):
     webdav: dict | None = None
     auto_backup: dict | None = None
     ccswitch: dict | None = None
+    launch: dict | None = None
+    i18n: dict | None = None
 
 
 @app.get("/api/settings")
@@ -791,8 +925,86 @@ def api_save_settings(req: SettingsReq) -> dict:
         patch["auto_backup"] = req.auto_backup
     if req.ccswitch is not None:
         patch["ccswitch"] = req.ccswitch
+    if req.launch is not None:
+        patch["launch"] = req.launch
+    if req.i18n is not None:
+        patch["i18n"] = req.i18n
     cloud.save_settings(patch)
     return {"saved": True}
+
+
+async def _ensure_i18n(agent: dict) -> None:
+    """启动前自动补汉化；任何异常都吞掉，不影响启动。"""
+    try:
+        auto, agent_prefs = _i18n_prefs()
+        if not auto or agent_prefs.get(agent["id"], True) is False:
+            return
+        if not agent.get("i18n"):
+            return
+        await asyncio.to_thread(localize.ensure, agent)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+@app.get("/api/i18n")
+def api_i18n() -> dict:
+    """汉化总览：每个声明了 i18n 的工具当前状态。"""
+    auto, enabled_map = _i18n_prefs()
+    items = localize.catalog(registry.load_agents())
+    for item in items:
+        item["enabled"] = enabled_map.get(item["id"], True) is not False
+    return {"auto": auto, "agents": items}
+
+
+class I18nReq(BaseModel):
+    enabled: bool | None = None
+    auto: bool | None = None
+    action: str | None = None   # apply | revert
+
+
+@app.post("/api/i18n/{agent_id}")
+async def api_i18n_agent(agent_id: str, req: I18nReq) -> dict:
+    agent = registry.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(404, "未找到该工具")
+    if not agent.get("i18n"):
+        raise HTTPException(400, "该工具暂不支持汉化")
+    auto, enabled_map = _i18n_prefs()
+    enabled_map = dict(enabled_map)
+    if req.enabled is not None:
+        enabled_map[agent_id] = req.enabled
+    patch: dict = {"agents": enabled_map, "auto": req.auto if req.auto is not None else auto}
+    cloud.save_settings({"i18n": patch})
+
+    result = None
+    if req.action == "apply":
+        result = await asyncio.to_thread(localize.apply, agent)
+    elif req.action == "revert":
+        result = await asyncio.to_thread(localize.revert, agent)
+    elif req.action not in (None, ""):
+        raise HTTPException(400, f"未知操作：{req.action}")
+    return {"saved": True, "result": result,
+            "status": await asyncio.to_thread(localize.status, agent)}
+
+
+class WhaleReq(BaseModel):
+    action: str = "status"   # install | uninstall | status
+
+
+@app.get("/api/whale")
+def api_whale_status() -> dict:
+    return whale.status()
+
+
+@app.post("/api/whale")
+async def api_whale(req: WhaleReq) -> dict:
+    if req.action == "install":
+        return await asyncio.to_thread(whale.install)
+    if req.action == "uninstall":
+        return await asyncio.to_thread(whale.uninstall)
+    if req.action == "status":
+        return {"ok": True, "status": await asyncio.to_thread(whale.status)}
+    raise HTTPException(400, f"未知操作：{req.action}")
 
 
 @app.post("/api/cloud/test")

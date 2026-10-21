@@ -28,6 +28,9 @@ DEFAULT_SETTINGS: dict = {
     "webdav": {"url": "", "username": "", "password": "", "remote_dir": "/aac"},
     "auto_backup": {"enabled": False, "interval_hours": 24, "agents": []},
     "ccswitch": {"db": ""},
+    "launch": {"terminal": "auto", "custom_terminal": "", "resume": False,
+                "cwd": "", "modes": {}},
+    "i18n": {"auto": True, "agents": {}},
 }
 
 

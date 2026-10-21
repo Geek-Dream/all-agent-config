@@ -1,0 +1,7 @@
+{
+  "name": "aac-whale",
+  "version": "1.0.0",
+  "private": true,
+  "description": "鲸鱼妹工作提示语：给 pi 的 turn 提示换成中文深海小台词",
+  "extensions": ["extensions/whale.ts"]
+}

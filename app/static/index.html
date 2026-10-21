@@ -17,29 +17,52 @@
     --radius:12px;
     --spring:cubic-bezier(.34,1.4,.64,1);
   }
+  /* ================= 白天：GitHub 白 + 稿黄点缀 ================= */
   [data-theme="light"] {
-    --bg:#edf0f8; --panel:#ffffff; --panel2:#f5f7fc; --border:#e0e6f1;
-    --fg:#1f2430; --dim:#68738a;
-    --green:#1a7f37; --orange:#b08800; --gray:#8a93a6; --blue:#2563eb; --red:#d6362c;
-    --accent:#2563eb; --accent-fg:#ffffff; --glow:none; --violet:#7c3aed;
-    --btn-bg:#eef1f7;
-    --log-bg:#f5f7fb; --log-fg:#3a4a63;
-    --shadow:0 10px 34px rgba(31,41,55,.09), 0 2px 6px rgba(31,41,55,.05);
-    --radius:12px;
+    --bg:#fbf8f4; --panel:#ffffff; --panel2:#f7f2ec; --border:#e7ddd2;
+    --fg:#1f2328; --dim:#6e7781;
+    --green:#1a7f37; --orange:#9a6700; --gray:#6e7781; --blue:#0969da; --red:#cf222e;
+    --accent:#c2410c; --accent-fg:#ffffff; --glow:none; --violet:#8250df;
+    --btn-bg:#fffaf5;
+    --log-bg:#fffdfb; --log-fg:#3d2b1f;
+    --shadow:0 1px 2px rgba(31,35,40,.05), 0 8px 24px rgba(120,72,30,.06);
+    --radius:10px;
   }
-  /* 白天主题装饰：柔光氛围斑 + 细点纹理 */
+  /* 白色基底 + 暖灰描边，顶部一道稿黄渐变线 */
   [data-theme="light"] body::before {
-    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
-    background:
-      radial-gradient(620px 420px at 10% -6%, rgba(37,99,235,.09), transparent 62%),
-      radial-gradient(720px 500px at 96% 8%, rgba(124,58,237,.07), transparent 62%),
-      radial-gradient(560px 520px at 52% 112%, rgba(16,185,129,.06), transparent 62%);
+    content:""; position:fixed; left:0; right:0; top:0; height:3px; z-index:5; pointer-events:none;
+    background:linear-gradient(90deg,#f97316,#fb923c,#fde68a,#fb923c,#f97316);
   }
-  [data-theme="light"] body::after {
-    content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.5;
-    background-image:radial-gradient(rgba(104,115,138,.14) 1px, transparent 1.4px);
-    background-size:24px 24px;
+  [data-theme="light"] header {
+    background:#ffffff; border-bottom:1px solid #efe4d8;
+    box-shadow:0 1px 0 rgba(249,115,22,.10);
   }
+  [data-theme="light"] header h1 { color:#1f2328; }
+  [data-theme="light"] thead th {
+    background:#faf5ef; color:#6b5a4b; text-transform:none; letter-spacing:0; font-weight:600;
+  }
+  [data-theme="light"] tbody tr:hover { background:#fdf6ef; }
+  [data-theme="light"] tbody tr:hover td:first-child { box-shadow:inset 3px 0 0 #f97316; }
+  [data-theme="light"] .toolbar { background:#ffffff; }
+  [data-theme="light"] .theme-switch { background:#f6efe8; border-color:#e7ddd2; }
+  /* 主按钮：实心稿黄 + 深色字（对比度稳） */
+  [data-theme="light"] button.primary {
+    background:linear-gradient(180deg,#ffa14d,#f97316); border-color:#e8590c;
+    color:#241a12; font-weight:600;
+  }
+  [data-theme="light"] button.primary:hover:not(:disabled) { filter:brightness(1.04); color:#241a12; }
+  [data-theme="light"] button:not(.primary):hover:not(:disabled) { background:#fdf2e7; }
+  [data-theme="light"] .filter-tabs button.on {
+    background:#fff0e2; color:#9a3412; box-shadow:inset 0 0 0 1px #f6c39a;
+  }
+  [data-theme="light"] .toolbar input[type=password],
+  [data-theme="light"] .toolbar input[type=text],
+  [data-theme="light"] .modal input[type=text],
+  [data-theme="light"] .modal input[type=password],
+  [data-theme="light"] .modal select { background:#ffffff; }
+  [data-theme="light"] .modal-mask { background:rgba(31,23,16,.42); }
+  [data-theme="light"] .tag { background:color-mix(in srgb, var(--tag-c, var(--accent)) 9%, #fff);
+         border-color:color-mix(in srgb, var(--tag-c, var(--accent)) 35%, #fff); }
   [data-theme="tech"] {
     --bg:#080400; --panel:#140b02; --panel2:#1d1104; --border:#3d2512;
     --fg:#ffe9d2; --dim:#96765a;
@@ -131,27 +154,12 @@
       radial-gradient(720px 520px at 8% 112%, rgba(210,168,255,.09), transparent 60%);
   }
   .scene { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
-  .sky, .ground { position:absolute; inset:0; }
-  .sky { display:none; }
+  .sky { position:absolute; inset:0; display:none; }
   [data-theme="dark"] .sky { display:block; }
   .star { position:absolute; background:#eaf2ff; border-radius:50%;
     animation:twinkle var(--tw,3s) ease-in-out infinite alternate; }
   .star.big { box-shadow:0 0 6px 1px rgba(180,215,255,.85); }
   @keyframes twinkle { from { opacity:.1; } to { opacity:1; } }
-
-  .ground { display:none; }
-  [data-theme="light"] .ground { display:block; }
-  .blade { position:absolute; bottom:0; transform-origin:50% 100%;
-    border-radius:60% 60% 0 0 / 100% 100% 0 0;
-    background:linear-gradient(to top, var(--g1,#4e9138), var(--g2,#8fce63));
-    animation:sway var(--sw,3.4s) ease-in-out infinite alternate; }
-  @keyframes sway { from { transform:rotate(calc(var(--r,0deg) - 4deg)); }
-                    to   { transform:rotate(calc(var(--r,0deg) + 4deg)); } }
-  .flower { position:absolute; bottom:0; transform-origin:50% 100%;
-    animation:sway var(--sw,3.8s) ease-in-out infinite alternate; }
-  .sheep { position:absolute; bottom:0; filter:drop-shadow(0 4px 7px rgba(31,41,55,.14)); }
-  .sheep .head { transform-origin:38px 60px; animation:graze 3.2s ease-in-out infinite; }
-  @keyframes graze { 0%,100% { transform:rotate(0deg); } 35% { transform:rotate(14deg); } 58% { transform:rotate(10deg); } }
 
   header { padding:20px 28px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px;
            flex-wrap:wrap; position:relative; z-index:1; animation:fadeDown .5s ease both; }
@@ -555,7 +563,7 @@
 </head>
 <body>
 <div class="fx"><i class="meteor m1"></i><i class="meteor m2"></i><i class="meteor m3"></i><i class="meteor m4"></i><i class="meteor m5"></i><i class="scanline"></i></div>
-<div class="scene" id="scene" aria-hidden="true"><div class="sky" id="sky"></div><div class="ground" id="ground"></div></div>
+<div class="scene" id="scene" aria-hidden="true"><div class="sky" id="sky"></div></div>
 <header>
   <h1><span class="gear">⚙️</span> All Agent Config</h1>
   <span class="sub">AI Agent 装机与配置迁移中心 · M2（检测 / 安装 / 更新 / 配置导出导入）</span>
@@ -673,6 +681,32 @@
   </div>
 </div>
 
+<!-- 启动配置弹窗 -->
+<div class="modal-mask" id="launchMask">
+  <div class="modal" style="width:min(520px,94vw)">
+    <header><h2 id="launchTitle">▶️ 启动</h2><button onclick="closeModal('launchMask')">✕</button></header>
+    <div class="body">
+      <div style="font-size:13px;margin-bottom:6px"><b>启动模式</b></div>
+      <div id="launchModes" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"></div>
+      <div id="launchWarn" style="display:none;font-size:12px;line-height:1.6;color:var(--orange);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:12px"></div>
+      <div id="launchResumeRow" style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <label class="sw"><input type="checkbox" id="launchResume"><i></i></label>
+        <span style="font-size:13px">恢复上次会话（同一工作目录）</span>
+      </div>
+      <div style="font-size:13px;margin-bottom:6px"><b>工作目录</b>（会话恢复按目录查找）</div>
+      <input type="text" id="launchCwd" placeholder="留空 = 用户主目录" style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:9px 12px;font-size:13px;margin-bottom:10px">
+      <div style="font-size:13px;margin-bottom:6px"><b>启动终端</b></div>
+      <select id="launchTerm" style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:9px 12px;font-size:13px;margin-bottom:8px"></select>
+      <input type="text" id="launchCustomTerm" placeholder="/Applications/XXX.app 或终端命令" style="display:none;width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:9px 12px;font-size:13px">
+    </div>
+    <footer>
+      <span class="kbd-hint">回车 启动 · Esc 取消</span>
+      <button onclick="closeModal('launchMask')">取消</button>
+      <button class="primary" id="launchGoBtn" onclick="doLaunch()">▶️ 启动</button>
+    </footer>
+  </div>
+</div>
+
 <!-- 操作二次确认弹窗 -->
 <div class="modal-mask" id="confirmMask">
   <div class="modal" style="width:min(460px,94vw)">
@@ -688,17 +722,33 @@
   </div>
 </div>
 
+<!-- 启动环境提示 -->
+<div class="modal-mask" id="envPromptMask">
+  <div class="modal" style="width:min(520px,94vw)">
+    <header><h2>🧰 检测到环境不完整</h2><button onclick="closeEnvPrompt()">✕</button></header>
+    <div class="body" id="envPromptBody"></div>
+    <footer>
+      <button onclick="closeEnvPrompt()">以后再说</button>
+      <button class="primary" onclick="envPromptGo()">现在安装</button>
+    </footer>
+  </div>
+</div>
+
 <!-- 环境检测弹窗 -->
 <div class="modal-mask" id="envMask">
   <div class="modal" style="width:min(560px,94vw)">
     <header><h2>🧰 运行环境</h2><button onclick="closeModal('envMask')">✕</button></header>
     <div class="body">
-      <div style="font-size:12px;color:var(--dim);margin-bottom:12px">
+      <div style="font-size:12px;color:var(--dim);margin-bottom:8px">
         安装 / 更新工具需要对应的安装管理器。缺少的可以一键自动安装，或按提示手动安装。
       </div>
+      <div id="envMirror" style="font-size:12px;color:var(--dim);margin-bottom:12px"></div>
       <div id="envBody"></div>
     </div>
-    <footer><button onclick="closeModal('envMask')">关闭</button></footer>
+    <footer>
+      <button onclick="closeModal('envMask')">关闭</button>
+      <button class="primary" id="envAllBtn" onclick="envInstallAll()">⚡ 一键安装缺失项</button>
+    </footer>
   </div>
 </div>
 
@@ -747,6 +797,19 @@
         <span style="display:flex;align-items:center;gap:8px;font-size:13px">
           <label class="sw"><input type="checkbox" id="cf_uninstall" onchange="setConfirm('uninstall',this.checked)"><i></i></label> 🗑️ 卸载时确认</span>
       </div>
+      <div style="font-size:14px;margin-bottom:6px"><b>🖥️ 启动终端</b>（Windows 默认 cmd，macOS 默认 Terminal；只影响「▶️ 启动」按钮）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+        <select id="st_terminal" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:8px 10px;font-size:13px"></select>
+        <input type="text" id="st_custom_terminal" placeholder="自定义 .app 路径或命令（选「自定义」时生效）" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:8px 10px;font-size:13px">
+      </div>
+      <div style="font-size:14px;margin-bottom:6px"><b>🀄 界面汉化</b>（官方没有多语言开关：直接替换程序内文案，更新后自动重打）</div>
+      <div id="i18n_list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--dim);margin-bottom:16px">
+        <label class="sw"><input type="checkbox" id="i18n_auto" onchange="i18nSet('', {auto:this.checked})"><i></i></label>
+        安装 / 更新后自动重打补丁（推荐；程序装在系统目录时会弹一次授权）
+      </div>
+      <div style="font-size:14px;margin-bottom:6px"><b>🐳 鲸鱼妹思考提示</b>（把 pi 的 Working… 换成中文鲸鱼台词；跟着 .aac 包同步到别的电脑）</div>
+      <div id="whale_row" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
       <div style="font-size:14px;margin-bottom:6px"><b>☁️ WebDAV 云同步</b>（坚果云 / Nextcloud / 群晖）</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <input type="text" id="wd_url" placeholder="https://dav.jianguoyun.com/dav/" style="grid-column:1/3">
@@ -848,11 +911,10 @@ if(new URLSearchParams(location.search).has('noanim')){
 }
 requestAnimationFrame(moveIndicator); // 字体加载后校正一次
 
-/* ---------------- 背景场景（白天：草地 / 花 / 吃草的羊；黑夜：无规律闪烁星空） ---------------- */
+/* ---------------- 背景场景（黑夜：无规律闪烁星空；白天：暖白底，无装饰） ---------------- */
 (function buildScene(){
   const sky = document.getElementById('sky');
-  const ground = document.getElementById('ground');
-  if(!sky || !ground) return;
+  if(!sky) return;
 
   let s = '';
   for(let i=0;i<130;i++){
@@ -865,45 +927,6 @@ requestAnimationFrame(moveIndicator); // 字体加载后校正一次
        + `opacity:${(0.45+Math.random()*0.55).toFixed(2)}"></i>`;
   }
   sky.innerHTML = s;
-
-  const FLOWER = '<line x1="20" y1="60" x2="20" y2="26" stroke="#4e9138" stroke-width="2.4" stroke-linecap="round"/>'
-    + '<g fill="var(--pe,#ffd54a)"><circle cx="20" cy="12" r="6.2"/><circle cx="28" cy="19" r="6.2"/>'
-    + '<circle cx="25" cy="28" r="6.2"/><circle cx="15" cy="28" r="6.2"/><circle cx="12" cy="19" r="6.2"/></g>'
-    + '<circle cx="20" cy="20" r="4" fill="#f2a11e"/>';
-  const SHEEP = ['<g stroke="#5b5b6b" stroke-width="4" stroke-linecap="round">',
-      '<line x1="45" y1="66" x2="45" y2="86"/><line x1="62" y1="66" x2="62" y2="88"/>',
-      '<line x1="88" y1="66" x2="88" y2="88"/><line x1="103" y1="66" x2="103" y2="86"/></g>',
-      '<g fill="#f7f7fb" stroke="#c9ccd8" stroke-width="2">',
-      '<circle cx="52" cy="52" r="18"/><circle cx="72" cy="44" r="20"/>',
-      '<circle cx="94" cy="52" r="18"/><circle cx="72" cy="60" r="18"/></g>',
-      '<g class="head"><ellipse cx="34" cy="50" rx="13" ry="15" fill="#3b3f52"/>',
-      '<ellipse cx="45" cy="38" rx="7" ry="4" fill="#3b3f52" transform="rotate(-25 45 38)"/>',
-      '<circle cx="28" cy="52" r="2.4" fill="#fff"/></g>',
-      '<ellipse cx="30" cy="44" rx="8" ry="6.5" fill="#f7f7fb"/>'].join('');
-
-  let g = '';
-  const sheep = [['left:0.8%','88px','63px'],['right:1%','80px','57px']];
-  for(const [pos,w,h] of sheep){
-    g += `<svg class="sheep" style="${pos}" width="${w}" height="${h}" `
-       + `viewBox="0 0 140 100" aria-hidden="true">${SHEEP}</svg>`;
-  }
-  const greens = [['#4e9138','#8fce63'],['#3f812f','#79bd55'],['#5aa03f','#a3da78']];
-  for(let i=0;i<80;i++){
-    const c = greens[Math.floor(Math.random()*greens.length)];
-    g += `<i class="blade" style="left:${(Math.random()*100).toFixed(2)}%;`
-       + `height:${(16+Math.random()*54).toFixed(0)}px;width:${(2+Math.random()*2.6).toFixed(1)}px;`
-       + `--r:${(-14+Math.random()*28).toFixed(1)}deg;--sw:${(2.6+Math.random()*2).toFixed(2)}s;`
-       + `--g1:${c[0]};--g2:${c[1]};animation-delay:-${(Math.random()*4).toFixed(2)}s"></i>`;
-  }
-  const petals = ['#ffd54a','#ff8fb1','#ffffff','#c4a7ff','#ffb37a'];
-  for(let i=0;i<10;i++){
-    const sc = 0.7+Math.random()*0.7;
-    g += `<svg class="flower" style="left:${(Math.random()*100).toFixed(2)}%;`
-       + `--pe:${petals[Math.floor(Math.random()*petals.length)]};--sw:${(3+Math.random()*2).toFixed(2)}s" `
-       + `width="${(22*sc).toFixed(0)}" height="${(34*sc).toFixed(0)}" viewBox="0 0 40 60" aria-hidden="true">`
-       + `${FLOWER}</svg>`;
-  }
-  ground.innerHTML = g;
 })();
 
 const LABELS = {system:'系统配置',hooks:'Hooks 钩子',skills:'Skills 技能',mcp:'MCP 服务器',
@@ -1004,7 +1027,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.addEventListener('keydown', e=>{
   // 数组顺序 = 叠放顺序，越靠后越顶层（sudo/确认弹窗可能叠在配置详情之上）
   const MASKS = ['configMask','providerMask','exportMask','importMask','envMask','archiveMask',
-                 'settingsMask','updateMask','confirmMask','sudoMask'];
+                 'settingsMask','updateMask','confirmMask','sudoMask','launchMask'];
   const openMasks = MASKS.map(id=>document.getElementById(id))
                          .filter(m=>m && m.classList.contains('open'));
   if(e.key === 'Escape'){
@@ -1020,6 +1043,7 @@ document.addEventListener('keydown', e=>{
     e.preventDefault();
     if(top.id==='confirmMask') doConfirm();
     else if(top.id==='sudoMask') confirmSudo();
+    else if(top.id==='launchMask') doLaunch();
     else if(top.id==='updateMask') updateSafe();
     else if(top.id==='exportMask') confirmExport();
     else if(top.id==='importMask') confirmImport();
@@ -1945,10 +1969,19 @@ async function openSettings(){
     abAgents.appendChild(empty);
   }
   document.getElementById('settingsMsg').textContent = '';
+  try{
+    const opts = await launchOptions(false);
+    fillTerminalSelect(document.getElementById('st_terminal'), opts, opts.settings.terminal||'auto');
+    document.getElementById('st_custom_terminal').value = opts.settings.custom_terminal||'';
+    document.getElementById('st_custom_terminal').style.display =
+      (document.getElementById('st_terminal').value==='custom') ? 'block' : 'none';
+  }catch(e){ /* 启动配置读取失败不影响其它设置 */ }
   document.getElementById('sudoState').textContent = SUDO_PWD ? '已记住（仅本次会话）' : '未记住密码';
   document.getElementById('cf_install').checked = !!CONFIRM.install;
   document.getElementById('cf_update').checked = !!CONFIRM.update;
   document.getElementById('cf_uninstall').checked = !!CONFIRM.uninstall;
+  loadI18n();
+  loadWhale();
   document.getElementById('settingsMask').classList.add('open');
 }
 function settingsPayload(){
@@ -1966,15 +1999,111 @@ function settingsPayload(){
       agents: [...document.querySelectorAll('.ab-agent:checked')].map(c=>c.value),
     },
     ccswitch: { db: document.getElementById('cc_db').value.trim() },
+    launch: {
+      terminal: document.getElementById('st_terminal').value,
+      custom_terminal: document.getElementById('st_custom_terminal').value.trim(),
+    },
   };
 }
 async function saveSettings(){
   const p = settingsPayload();
   await apiFetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+  LAUNCH_OPTS = null;
   document.getElementById('settingsMsg').textContent = '✅ 已保存（密码仅存储在本机 ~/.aac/settings.json）';
 }
-async function testCloud(){
-  await saveSettings();
+/* ---------------- 界面汉化 ---------------- */
+function i18nBadge(a){
+  if(!a.available) return {t:'不可用', c:'var(--dim)'};
+  if(a.applied) return {t:'已汉化', c:'var(--green, #3fb950)'};
+  if(a.needs_elevation) return {t:'待授权', c:'var(--orange)'};
+  return {t:'待汉化', c:'var(--orange)'};
+}
+async function loadI18n(){
+  const box = document.getElementById('i18n_list');
+  if(!box) return;
+  box.replaceChildren();
+  let data;
+  try{ data = await (await apiFetch('/api/i18n')).json(); }
+  catch(e){ return; }
+  document.getElementById('i18n_auto').checked = !!data.auto;
+  if(!data.agents.length){
+    const empty = document.createElement('span');
+    empty.style.cssText = 'color:var(--dim);font-size:12px';
+    empty.textContent = '本机暂无可汉化的工具（目前支持 Codex / Pi）';
+    box.appendChild(empty);
+    return;
+  }
+  for(const a of data.agents){
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;padding:8px 10px';
+    const name = document.createElement('b');
+    name.style.fontSize = '13px';
+    name.textContent = a.name;
+    const badge = i18nBadge(a);
+    const state = document.createElement('span');
+    state.style.cssText = `font-size:12px;color:${badge.c}`;
+    state.textContent = badge.t + (a.keys ? ` · ${a.keys} 条` : '');
+    state.title = a.message || '';
+    const kind = document.createElement('span');
+    kind.style.cssText = 'font-size:11px;color:var(--dim)';
+    kind.textContent = a.kind === 'binary' ? '二进制补丁' : '文本替换';
+    const grow = document.createElement('span');
+    grow.style.flex = '1';
+    const sw = document.createElement('label');
+    sw.className = 'sw';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!a.enabled;
+    cb.onchange = () => i18nSet(a.id, {enabled: cb.checked});
+    sw.append(cb, document.createElement('i'));
+    const applyBtn = document.createElement('button');
+    applyBtn.textContent = '汉化';
+    applyBtn.disabled = !a.available;
+    applyBtn.onclick = () => i18nSet(a.id, {action: 'apply'});
+    const revertBtn = document.createElement('button');
+    revertBtn.textContent = '还原';
+    revertBtn.disabled = !a.revertible;
+    revertBtn.onclick = () => i18nSet(a.id, {action: 'revert'});
+    row.append(name, state, kind, grow, sw, applyBtn, revertBtn);
+    box.appendChild(row);
+  }
+}
+async function i18nSet(id, patch){
+  const url = id ? '/api/i18n/' + encodeURIComponent(id) : '/api/settings';
+  const body = id ? patch : {i18n: {auto: !!patch.auto}};
+  const msg = document.getElementById('settingsMsg');
+  try{
+    const r = await (await apiFetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})).json();
+    if(r.result && !r.result.ok){ msg.textContent = '⚠️ ' + (r.result.message || '汉化失败'); }
+    else if(r.result){ msg.textContent = '✅ ' + (r.result.message || '完成'); }
+    else { msg.textContent = '✅ 已保存'; }
+  }catch(e){ msg.textContent = '❌ ' + e.message; }
+  loadI18n();
+}
+async function loadWhale(){
+  const box = document.getElementById('whale_row');
+  if(!box) return;
+  box.replaceChildren();
+  let st;
+  try{ st = await (await apiFetch('/api/whale')).json(); }catch(e){ return; }
+  const state = document.createElement('span');
+  state.style.cssText = 'font-size:12px;color:' + (st.active ? 'var(--green, #3fb950)' : 'var(--dim)');
+  state.textContent = st.active ? '已启用 · 每轮随机一句' : (st.installed ? '已复制，未注册' : '未安装');
+  if(st.conflicts && st.conflicts.length) state.title = '同时在跑：' + st.conflicts.join(', ');
+  const btn = document.createElement('button');
+  btn.textContent = st.active ? '🫧 卸下' : '🐳 装上';
+  btn.onclick = async () => {
+    const msg = document.getElementById('settingsMsg');
+    try{
+      const r = await (await apiFetch('/api/whale', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({action: st.active ? 'uninstall' : 'install'})})).json();
+      msg.textContent = r.ok ? '✅ ' + (r.message || '完成') : '❌ ' + (r.message || '失败');
+    }catch(e){ msg.textContent = '❌ ' + e.message; }
+    loadWhale();
+  };
+  box.append(state, btn);
+}
+async function testCloud(){  await saveSettings();
   const r = await (await apiFetch('/api/cloud/test',{method:'POST'})).json();
   document.getElementById('settingsMsg').textContent = r.ok ? '✅ 连接成功' : '❌ '+r.msg;
 }
@@ -2092,18 +2221,62 @@ function openLog(taskId, title, agentId, action){
 
 /* ---------------- 运行环境检测 / 一键装环境 ---------------- */
 let ENV = null;
+const ENV_CRITICAL = ['node','npm','git'];
+
+function envManagers(){
+  return Object.entries(ENV||{}).filter(([k])=>!k.startsWith('_'));
+}
+function envMirrorLine(){
+  const m = ENV && ENV._mirror;
+  if(!m) return '';
+  return `📦 安装源：<b>${esc(m.label||'国内镜像')}</b> · npm <code>${esc(m.npm||'')}</code>`;
+}
 async function loadEnv(){
   try{
     ENV = await (await apiFetch('/api/env')).json();
     const ok = [], miss = [];
-    for(const [k,v] of Object.entries(ENV)) (v.installed?ok:miss).push(v.label||k);
+    for(const [k,v] of envManagers()) (v.installed?ok:miss).push(v.label||k);
     document.getElementById('envBadge').textContent =
       `🧰 ${ok.slice(0,3).join('·')}${ok.length>3?'…':''} ✓` + (miss.length?` ｜ 缺 ${miss.join('·')}`:'');
+    maybePromptEnv();
   }catch(e){ /* 环境接口失败不阻塞主流程 */ }
+}
+function maybePromptEnv(){
+  if(!ENV) return;
+  if(sessionStorage.getItem('aac.envPrompt')==='off') return;
+  const missing = ENV_CRITICAL.filter(k=>ENV[k] && !ENV[k].installed);
+  if(!missing.length) return;
+  const rows = missing.map(k=>{
+    const v = ENV[k];
+    const tag = v.auto_install
+      ? '<span class="badge b-ok">可自动安装</span>'
+      : '<span class="badge b-no">需手动安装</span>';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border)">
+      <b style="width:86px;font-size:13px">${esc(v.label||k)}</b>${tag}
+      <span style="margin-left:auto;font-size:12px;color:var(--dim)">${esc(v.version||'')}</span></div>`;
+  }).join('');
+  document.getElementById('envPromptBody').innerHTML = `
+    <div style="font-size:13px;margin-bottom:10px">缺少下面这些工具，部分 Agent 可能装不上或跑不起来：</div>
+    ${rows}
+    <div style="font-size:12px;color:var(--dim);margin-top:12px">${envMirrorLine()}</div>
+    <div style="font-size:12px;color:var(--dim);margin-top:6px">点「现在安装」会自动装好可自动处理的项；装完建议重启本工具。</div>`;
+  document.getElementById('envPromptMask').classList.add('open');
+}
+function closeEnvPrompt(){
+  sessionStorage.setItem('aac.envPrompt','off');
+  closeModal('envPromptMask');
+}
+function envPromptGo(){
+  closeEnvPrompt();
+  envInstallAll();
 }
 async function openEnv(focus){
   if(!ENV) await loadEnv();
-  document.getElementById('envBody').innerHTML = Object.entries(ENV).map(([k,v])=>{
+  document.getElementById('envMirror').innerHTML = envMirrorLine();
+  const missAuto = envManagers().filter(([,v])=>!v.installed && v.auto_install);
+  const allBtn = document.getElementById('envAllBtn');
+  if(allBtn) allBtn.style.display = missAuto.length ? '' : 'none';
+  document.getElementById('envBody').innerHTML = envManagers().map(([k,v])=>{
     const hl = focus===k ? 'border:1px solid var(--orange);border-radius:8px;' : '';
     const state = v.installed
       ? `<span class="badge b-ok">✓ ${esc(v.version||'已安装')}</span>`
@@ -2120,22 +2293,43 @@ async function openEnv(focus){
   }).join('');
   document.getElementById('envMask').classList.add('open');
 }
+function envInstallOne(name){
+  return new Promise(async resolve=>{
+    try{
+      const r = await apiFetch(`/api/env/install/${name}`, {method:'POST'});
+      if(r.status===400){
+        const d = await r.json();
+        toast('⚠️ '+(d.detail||'无法自动安装'));
+        if(ENV && ENV[name]) ENV[name].manual_hint = d.detail;
+        resolve(false);
+        return;
+      }
+      const {task_id} = await r.json();
+      openLog(task_id, `🧰 安装环境 —— ${ENV?.[name]?.label||name}`);
+      const timer = setInterval(async()=>{
+        const t = await (await apiFetch(`/api/tasks/${task_id}`)).json();
+        if(t.status!=='running'){ clearInterval(timer); resolve(t.status==='done'); }
+      }, 1000);
+    }catch(e){ resolve(false); }
+  });
+}
 async function envInstall(name){
-  const r = await apiFetch(`/api/env/install/${name}`, {method:'POST'});
-  if(r.status===400){
-    const d = await r.json();
-    toast('⚠️ '+(d.detail||'无法自动安装'));
-    if(ENV[name]) ENV[name].manual_hint = d.detail;
-    openEnv(name);
-    return;
-  }
-  const {task_id} = await r.json();
   closeModal('envMask');
-  openLog(task_id, `🧰 安装环境 —— ${ENV[name]?.label||name}`);
-  const timer = setInterval(async()=>{
-    const t = await (await apiFetch(`/api/tasks/${task_id}`)).json();
-    if(t.status!=='running'){ clearInterval(timer); ENV=null; loadEnv(); loadTools(); }
-  }, 1000);
+  await envInstallOne(name);
+  ENV = null; await loadEnv(); loadTools();
+}
+async function envInstallAll(){
+  if(!ENV) await loadEnv();
+  const names = envManagers().filter(([,v])=>!v.installed && v.auto_install).map(([k])=>k);
+  if(!names.length){ toast('没有可自动安装的缺失项'); openEnv(); return; }
+  closeModal('envMask');
+  closeModal('envPromptMask');
+  sessionStorage.setItem('aac.envPrompt','off');
+  for(const name of names){
+    const ok = await envInstallOne(name);
+    if(!ok){ toast(`⚠️ ${ENV?.[name]?.label||name} 安装失败，已停止后续安装`); break; }
+  }
+  ENV = null; await loadEnv(); loadTools();
 }
 
 /* ---------------- 压缩包识别安装 ---------------- */
@@ -2152,9 +2346,126 @@ function openArchive(){
   document.getElementById('archiveMask').classList.add('open');
 }
 async function launchTool(id){
-  const r = await apiFetch(`/api/launch/${id}`, {method:'POST'});
-  if(r.status===400){ const d=await r.json(); toast('⚠️ '+(d.detail||'启动失败')); return; }
-  toast('🚀 已启动');
+  let opts;
+  try{ opts = await launchOptions(true); }
+  catch(e){ toast('⚠️ 无法读取启动配置'); return; }
+  const info = (opts.agents||{})[id];
+  if(!info){ toast('该工具暂未适配启动配置'); return; }
+  if(!info.launchable){ toast('未找到可启动的程序，请先安装'); return; }
+  LAUNCH_ID = id; LAUNCH_ACK = false;
+  const t = TOOLS.find(x=>x.id===id);
+  document.getElementById('launchTitle').textContent = '▶️ 启动 ' + (t?t.name:id);
+  renderLaunchModes(info, (opts.settings.modes||{})[id]);
+  document.getElementById('launchResume').checked = !!opts.settings.resume;
+  document.getElementById('launchResumeRow').style.display = info.resume ? 'flex' : 'none';
+  document.getElementById('launchCwd').value = opts.settings.cwd || '';
+  fillTerminalSelect(document.getElementById('launchTerm'), opts, opts.settings.terminal || 'auto');
+  document.getElementById('launchCustomTerm').value = opts.settings.custom_terminal || '';
+  updateLaunchWarning();
+  document.getElementById('launchMask').classList.add('open');
+}
+let LAUNCH_OPTS = null, LAUNCH_ID = null, LAUNCH_ACK = false;
+async function launchOptions(refresh){
+  if(refresh || !LAUNCH_OPTS){
+    LAUNCH_OPTS = await (await apiFetch('/api/launch/options')).json();
+  }
+  return LAUNCH_OPTS;
+}
+function fillTerminalSelect(sel, opts, value){
+  sel.replaceChildren();
+  const auto = document.createElement('option');
+  auto.value = 'auto'; auto.textContent = '自动（默认 '+ (opts.default_terminal||'系统终端') +'）';
+  sel.appendChild(auto);
+  for(const term of opts.terminals||[]){
+    if(!term.available && !term.builtin) continue;
+    const option = document.createElement('option');
+    option.value = term.id;
+    option.textContent = term.name + (term.available ? '' : '（未检测到）');
+    sel.appendChild(option);
+  }
+  const custom = document.createElement('option');
+  custom.value = 'custom'; custom.textContent = '自定义应用 / 命令…';
+  sel.appendChild(custom);
+  sel.value = value;
+  if(![...sel.options].some(o=>o.value===sel.value)) sel.value = 'auto';
+  sel.onchange = ()=>{
+    const input = sel.id === 'st_terminal' ?
+      document.getElementById('st_custom_terminal') : document.getElementById('launchCustomTerm');
+    input.style.display = sel.value === 'custom' ? 'block' : 'none';
+  };
+}
+function renderLaunchModes(info, saved){
+  const box = document.getElementById('launchModes');
+  box.replaceChildren();
+  const modes = info.modes || [];
+  const pick = modes.some(m=>m.id===saved && m.supported) ? saved
+             : (modes.some(m=>m.id==='normal' && m.supported) ? 'normal'
+             : (modes.find(m=>m.supported)||{}).id);
+  for(const mode of modes){
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.5;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:'+(mode.supported?'pointer':'not-allowed')+';opacity:'+(mode.supported?'1':'.45');
+    const input = document.createElement('input');
+    input.type = 'radio'; input.name = 'launchMode'; input.value = mode.id;
+    input.disabled = !mode.supported;
+    input.checked = mode.id === pick;
+    input.onchange = updateLaunchWarning;
+    const text = document.createElement('span');
+    text.innerHTML = '<b>'+esc(mode.name)+'</b>'
+      + (mode.supported ? '' : '<br><span style="color:var(--dim);font-size:11px">'+esc(mode.reason||'不支持')+'</span>')
+      + (mode.note ? '<br><span style="color:var(--dim);font-size:11px">'+esc(mode.note)+'</span>' : '');
+    label.append(input, text);
+    box.appendChild(label);
+  }
+}
+function selectedLaunchMode(){
+  const input = document.querySelector('input[name=launchMode]:checked');
+  return input ? input.value : null;
+}
+function updateLaunchWarning(){
+  const info = ((LAUNCH_OPTS||{}).agents||{})[LAUNCH_ID] || {};
+  const mode = selectedLaunchMode();
+  const spec = (info.modes||[]).find(m=>m.id===mode) || {};
+  const warn = document.getElementById('launchWarn');
+  const btn = document.getElementById('launchGoBtn');
+  LAUNCH_ACK = false;
+  btn.textContent = '▶️ 启动'; btn.className = 'primary';
+  if(spec.confirm){
+    warn.style.display = 'block';
+    warn.innerHTML = '⚠️ <b>'+esc(spec.name||'危险模式')+'</b>：'+esc(spec.warning||'此模式会跳过安全确认');
+    btn.textContent = '⚠️ 我已知晓风险，启动';
+    btn.className = 'danger';
+  } else if(spec.note){
+    warn.style.display = 'block';
+    warn.textContent = 'ℹ️ ' + spec.note;
+  } else {
+    warn.style.display = 'none'; warn.textContent = '';
+  }
+}
+async function doLaunch(){
+  const mode = selectedLaunchMode();
+  if(!mode){ toast('请选择一个启动模式'); return; }
+  const info = ((LAUNCH_OPTS||{}).agents||{})[LAUNCH_ID] || {};
+  const spec = (info.modes||[]).find(m=>m.id===mode) || {};
+  if(spec.confirm && !LAUNCH_ACK){
+    LAUNCH_ACK = true;
+    document.getElementById('launchGoBtn').textContent = '▶️ 确认并启动（已是第二次点击）';
+    return;
+  }
+  const body = {
+    mode,
+    resume: document.getElementById('launchResume').checked,
+    terminal: document.getElementById('launchTerm').value,
+    custom_terminal: document.getElementById('launchCustomTerm').value.trim(),
+    cwd: document.getElementById('launchCwd').value.trim(),
+    confirm_ack: LAUNCH_ACK,
+  };
+  const r = await apiFetch(`/api/launch/${LAUNCH_ID}`, {method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ toast('⚠️ ' + (d.detail || ('启动失败（HTTP '+r.status+'）'))); return; }
+  closeModal('launchMask');
+  toast('🚀 已启动：' + (d.command||''));
+  LAUNCH_OPTS = null;
 }
 async function doFolderInstall(){
   const path = (document.getElementById('folderPath').value||'').trim();
@@ -2186,6 +2497,11 @@ async function doArchiveInstall(input){
 
 loadTools();
 loadEnv();
+
+/* 支持 ?open=settings 直接打开设置面板（截图 / 调试用） */
+if(new URLSearchParams(location.search).get('open')==='settings'){
+  setTimeout(()=>{ if(typeof openSettings==='function') openSettings(); }, 700);
+}
 
 /* 支持 #config-<agentId> 直接打开某个工具的配置详情 */
 if(location.hash.startsWith('#config-')){

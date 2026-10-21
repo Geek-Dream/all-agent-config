@@ -73,7 +73,7 @@ aac                    # 启动并自动打开 http://127.0.0.1:8600
 - **按工具校验 Node 下限**：读取各 npm 包最新版 `engines.node`（缓存 6h），启动/安装/更新前比对本机版本，不满足直接拦下并提示升级
 - **压缩包 / 文件夹安装**：拖入 .zip/.tar.gz，或填写本地文件夹 / `.app` 路径，自动定位可执行文件并装入 `~/.aac/apps/`（`.app` 进 `~/Applications`）
 - **官方直链 / GitHub Release 一键下载**：按平台选包（dmg / exe / zip / tar），可选镜像地址与 SHA-256 校验；装完可直接启动
-- **随时启动**：已安装工具带「▶️ 启动」按钮，桌面程序走 `open` / `start`，CLI 后台拉起
+- **随时启动**：已安装工具带「▶️ 启动」按钮；Claude Code / Codex / Pi 可选普通 / 审核 / 沙箱 / 危险模式与会话恢复，用系统终端（macOS Terminal、Windows cmd）或自定义应用拉起，启动失败如实报错（见 M5+++）
 - **独立二进制工具受管卸载**（如 Kimi Code）：只删程序文件（bin/cache/updates），配置、会话、skills 保留
 - **Windows 深度兼容**：`.cmd/.exe` shim 识别、npm 前缀布局差异、可写性判断、UAC 提权
 - **注册表扩至 21 个主流 agent**：新增 Amp / GitHub Copilot CLI / Auggie / Continue CLI / Aider(pipx) / Goose / Cursor Agent / DeepSeek Harness，全部附官网链接或安装方式
@@ -101,6 +101,31 @@ aac                    # 启动并自动打开 http://127.0.0.1:8600
 - **密钥安全**：密钥仅存本机 `~/.aac/providers.json`（权限 0600）；面板列表默认以占位符 `••••••••` 显示，可点 👁 查看明文、📋 一键复制（服务只监听 `127.0.0.1`），普通列表接口仍脱敏
 - **进包可选加密**：供应商配置作为独立分类进 `.aac` 包；导出时可勾选「加密导出」为整包 AES-256-GCM 加密（scrypt 派生密钥），**默认不加密**，导入时自动识别并提示输入密码
 
+### M5+++ 启动配置（终端 / 模式 / 会话恢复）
+- **终端可选**：默认 macOS `Terminal.app`、Windows `cmd`；设置页可切 iTerm2 / Warp / Ghostty / kitty / WezTerm / Alacritty / Windows Terminal / PowerShell，或填任意 `.app` / 命令作为自定义终端
+- **启动模式**按注册表声明，不伪造：普通；审核（claude `--permission-mode plan`、codex `-s read-only`、pi `--no-tools`）；沙箱（claude `--settings {"sandbox":{"enabled":true}}`、codex `-s workspace-write`；pi 无内置沙箱，按不支持显示）；危险（claude `--dangerously-skip-permissions`、codex `--dangerously-bypass-approvals-and-sandbox`；pi 无审批开关）
+- **会话恢复**：claude / pi 用 `--continue`，codex 用 `resume --last`，按所选工作目录查找上次会话
+- **诚实启动**：osascript / `open` 的退出码与输出直接带回；不再「fork 成功就算已启动」
+- **危险模式二次确认**：第一次点击只解锁并换成红色确认按钮，第二次点击才真正启动，警告文案写明后果
+
+### M5++++ 界面汉化（可自动重打）
+官方 CLI 都没有多语言开关，所以汉化 = **直接替换程序内文案**，本项目把它做成可管理的补丁：
+
+- **两类目标**（`i18n` 块声明在 `agents.yaml`，词表放 `data/i18n/*.json`）
+  - `text` —— Pi 这类 JS 分发：替换 `dist` 里的 `description: "英文"`，原文备份到 `~/.aac/i18n/backup/<id>/`
+  - `binary` —— Codex 这类 Rust 原生包：TUI 文案编译进二进制、长度写死在机器码里，只能**等字节替换**（中文不足补空格），改完自动 `codesign --force --sign -` 重签；原文备份为 `<二进制>.aac-orig`
+- **装完就生效、升级后自愈**：npm 安装/更新成功、以及每次点「▶️ 启动」前，都会检查并补打补丁（失败只写日志，绝不挡启动）
+- **系统目录授权**：`/usr/local` 这类 root 目录走系统授权弹窗（macOS `osascript … with administrator privileges`、Linux `pkexec`、Windows UAC），不保存密码
+- **可查可退**：设置页「🀄 界面汉化」列出每个工具的条数、类型、状态，支持开关与「还原」；`i18n.auto` 关掉则完全不碰
+- **命令行**：`python -m app.localize`（看状态）/ `--apply` / `--revert` / 指定 `codex`、`pi`
+- **已知边界**：只覆盖注册表里声明的字符串（Codex 62 条斜杠命令描述、Pi 23 条）；上游改文案后新条目仍显示英文，`status` 会报「待汉化（N 条英文残留）」，补词表即可
+
+### 彩蛋：🐳 鲸鱼妹思考提示（Pi 扩展 aac-whale）
+- 每次 turn 把 pi 的 `Working…` 换成一句中文台词，**193 句**洗牌不重复：深海系（下潜 / 换气 / 鲸歌 / 磷虾）+ 鲸鱼妹人格（本鲸委屈但本鲸继续写）+ 码农梗 + 摸鱼梗，另合并了 `mitsuhiko/agent-stuff` 的 whimsical 全套词条（避免两个扩展抢同一个提示位）
+- 资源在 `assets/pi-whale/`，安装 = 复制到 `~/.pi/pi-extensions/aac-whale` + 注册进 `~/.pi/agent/settings.json` 的 `packages`（改前自动备份 `settings.json.aac-bak`）
+- 命令：`python -m app.whale --install` / `--uninstall`，不带参数看状态；设置页「🐳 鲸鱼妹思考提示」也有装上 / 卸下按钮
+- **跨机同步**：`~/.pi/pi-extensions` 与 `~/.pi/agent/settings.json` 都在 Pi 的导出分类里，所以导出 `.aac` 带到 Windows 导入后，扩展和注册一起回来（路径自动映射）
+
 ## 目录结构
 
 ```
@@ -119,9 +144,13 @@ app/
   ccswitch.py   只读读取 cc-switch 的 SQLite 库，供选择性导入
   crypto.py     .aac 包加密（scrypt + AES-256-GCM）
   patchwork.py  补丁快照 + 锚点式三方合并移植
+  localize.py   界面汉化引擎（text 文本替换 / binary 等字节补丁 + 重签 + 自动重打）
+  whale.py      鲸鱼妹思考提示（pi 扩展 aac-whale）安装 / 卸载 / 状态
   cloud.py      WebDAV 客户端（PUT/GET/PROPFIND/MKCOL）与设置存储
   backup.py     定时增量自动备份后台任务
   static/       Web 前端（单页，三主题 + 滑块式分类选择 + 设置面板）
+  ../data/i18n/ 汉化词表（codex.json / pi.json，纯 JSON，可跟着 .aac 包迁移）
+  ../assets/pi-whale/ 鲸鱼妹提示语扩展源（whale.ts + package.json）
   agents.yaml   20 个 Agent 工具的安装源（npm/brew/scoop/winget/pipx/manual）、
                 官网、配置目录、会话目录与分类定义
 ```

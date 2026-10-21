@@ -437,3 +437,31 @@ class CliTests(unittest.TestCase):
                 patch.object(main.uvicorn, "run"), patch("builtins.print"):
             main.cli()
         self.assertIsNone(main._OPEN_URL)
+
+
+class I18nSettingsRobustnessTests(unittest.TestCase):
+    """设置里 i18n 被写成任意形状时，安装/启动链路都不能炸。"""
+
+    def test_prefs_tolerates_wrong_shapes(self):
+        for bad in ({"i18n": {"agents": []}}, {"i18n": "off"}, {"i18n": None},
+                    {"i18n": {"auto": "yes", "agents": {"pi": False}}}):
+            with patch.object(main.cloud, "load_settings", return_value=bad):
+                auto, agents = main._i18n_prefs()
+                self.assertIsInstance(auto, bool)
+                self.assertIsInstance(agents, dict)
+
+    def test_prefs_honours_explicit_values(self):
+        cfg = {"i18n": {"auto": False, "agents": {"pi": False}}}
+        with patch.object(main.cloud, "load_settings", return_value=cfg):
+            auto, agents = main._i18n_prefs()
+        self.assertFalse(auto)
+        self.assertFalse(agents["pi"])
+
+    def test_auto_localize_never_raises(self):
+        import asyncio
+        log: list[str] = []
+        cfg = {"i18n": {"agents": ["not", "a", "dict"]}}
+        with patch.object(main.cloud, "load_settings", return_value=cfg), \
+                patch.object(main.registry, "get_agent", side_effect=RuntimeError("boom")):
+            asyncio.run(main._auto_localize("pi", log))
+        self.assertTrue(any("汉化" in line for line in log))

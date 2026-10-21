@@ -55,6 +55,14 @@ agents:
         - "~/.claude/commands"
         - "~/.claude/hooks"
         - "~/.claude/rules"
+    launch:
+      needs_terminal: true
+      resume_args: ["--continue"]
+      modes:
+        normal: {name: 普通模式, args: []}
+        review: {name: 审核模式, args: ["--permission-mode", "plan"]}
+        sandbox: {name: 沙箱模式, args: ["--settings", '{"sandbox":{"enabled":true}}'], note: "依赖 Claude Code 内置沙箱支持"}
+        danger: {name: 危险模式, args: ["--dangerously-skip-permissions"], confirm: true, warning: "跳过全部权限确认，可任意读写文件并执行命令"}
     notes: 配置含 settings.json / CLAUDE.md / skills / plugins / hooks / statusline（状态栏自定义）
 
   - id: codex
@@ -81,7 +89,22 @@ agents:
           json_keys: ["hooks"]
       skills: ["~/.codex/skills"]
       custom: ["~/.codex/AGENTS.md", "~/.codex/prompts"]
-    notes: 配置含 config.toml / auth / skills / agents.md
+    launch:
+      needs_terminal: true
+      resume_args: ["resume", "--last"]
+      modes:
+        normal: {name: 普通模式, args: []}
+        review: {name: 审核模式, args: ["-s", "read-only"]}
+        sandbox: {name: 沙箱模式, args: ["-s", "workspace-write", "-a", "on-request"]}
+        danger: {name: 危险模式, args: ["--dangerously-bypass-approvals-and-sandbox"], confirm: true, warning: "跳过全部权限确认，可任意读写文件并执行命令"}
+    i18n:
+      kind: binary
+      map: codex.json
+      auto: true
+      locate:
+        package: "@openai/codex"
+        glob: "node_modules/@openai/codex-*/vendor/*/bin/codex*"
+    notes: 配置含 config.toml / auth / skills / agents.md；汉化为二进制等字节补丁（升级后自动重打）
 
   - id: pi
     name: Pi
@@ -115,6 +138,22 @@ agents:
         - "~/.pi/APPEND_SYSTEM.md"
         - "~/.pi/agent/extensions"
         - "~/.pi/pi-extensions"
+    launch:
+      needs_terminal: true
+      resume_args: ["--continue"]
+      modes:
+        normal: {name: 普通模式, args: []}
+        review: {name: 审核模式, args: ["--no-tools"], note: "禁用全部工具，只能对话"}
+        sandbox: {name: 沙箱模式, args: [], supported: false, reason: "Pi 无内置沙箱"}
+        danger: {name: 危险模式, args: [], supported: false, reason: "Pi 默认无权限审批，无额外开关"}
+    i18n:
+      kind: text
+      map: pi.json
+      auto: true
+      marker: "Open settings menu"
+      locate:
+        package: "@earendil-works/pi-coding-agent"
+        glob: "dist/**/*.js"
     notes: 配置实际位于 ~/.pi/agent/；进度条/标题栏魔改在 agent/extensions 或程序包内（后者由补丁检测发现）
 
   - id: gemini-cli
