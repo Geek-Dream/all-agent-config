@@ -810,6 +810,31 @@
       </div>
       <div style="font-size:14px;margin-bottom:6px"><b>🐳 鲸鱼妹思考提示</b>（把 pi 的 Working… 换成中文鲸鱼台词；跟着 .aac 包同步到别的电脑）</div>
       <div id="whale_row" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
+      <div style="font-size:14px;margin-bottom:6px"><b>📊 状态栏编辑器</b>（tag 拼装：点 tag 插入，右侧实时预览；pi / claude / codex 共用同一套配置）</div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;background:var(--panel2)">
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:280px">
+            <div style="color:var(--dim);font-size:12px;margin-bottom:6px">可插入的 tag（点一下加到当前行）</div>
+            <div id="footer_tags" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            <div style="color:var(--dim);font-size:12px;margin:10px 0 6px">模板</div>
+            <div id="footer_presets" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+          <div style="flex:1;min-width:320px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="color:var(--dim);font-size:12px">分隔符</span>
+              <span id="footer_seps" style="display:flex;gap:6px"></span>
+            </div>
+            <div id="footer_canvas" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
+            <div style="color:var(--dim);font-size:12px;margin-bottom:4px">预览</div>
+            <pre id="footer_preview" style="margin:0 0 10px;padding:10px;border:1px dashed var(--border);border-radius:8px;background:var(--bg);color:var(--fg);font-size:12px;white-space:pre-wrap;line-height:1.6"></pre>
+            <div style="display:flex;align-items:center;gap:10px">
+              <button onclick="footerSave()">💾 保存并启用</button>
+              <button onclick="footerReset()">↺ 恢复默认模板</button>
+              <span id="footer_msg" style="color:var(--dim);font-size:12px"></span>
+            </div>
+          </div>
+        </div>
+      </div>
       <div style="font-size:14px;margin-bottom:6px"><b>📦 导出设置</b>（只管「对话历史」；skills / 配置再大也照导，API Key 一律随包带走）</div>
       <div style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:16px;flex-wrap:wrap">
         单个会话最大
@@ -2010,6 +2035,7 @@ async function openSettings(){
   document.getElementById('cf_uninstall').checked = !!CONFIRM.uninstall;
   loadI18n();
   loadWhale();
+  footerLoad();
   document.getElementById('settingsMask').classList.add('open');
 }
 function settingsPayload(){
@@ -2042,6 +2068,115 @@ async function saveSettings(){
   LAUNCH_OPTS = null;
   document.getElementById('settingsMsg').textContent = '✅ 已保存（密码仅存储在本机 ~/.aac/settings.json）';
 }
+
+/* ---------------- 状态栏编辑器 ---------------- */
+let FOOTER_STATE = null;
+
+async function footerLoad(){
+  try{
+    FOOTER_STATE = await (await apiFetch('/api/footer')).json();
+    footerRender();
+  }catch(e){
+    const box = document.getElementById('footer_msg');
+    if(box) box.textContent = '状态栏配置读取失败：'+e.message;
+  }
+}
+
+function footerRender(){
+  if(!FOOTER_STATE) return;
+  const cfg = FOOTER_STATE.config;
+  const tags = document.getElementById('footer_tags');
+  tags.innerHTML = FOOTER_STATE.tags.map(t=>
+    `<button onclick="footerAddTag('${t.id}')" title="${esc(t.desc)}"
+      style="background:var(--panel);border:1px solid var(--border);border-radius:999px;color:var(--fg);padding:4px 10px;font-size:12px;cursor:pointer">
+      ${esc(t.name)}<span style="color:var(--dim)"> ${esc(t.preview)}</span></button>`).join('');
+  document.getElementById('footer_presets').innerHTML = FOOTER_STATE.presets.map(p=>
+    `<button onclick="footerPreset('${p.id}')" title="${esc(p.desc)}"
+      style="background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:5px 10px;font-size:12px;cursor:pointer">${esc(p.name)}</button>`).join('');
+  document.getElementById('footer_seps').innerHTML = FOOTER_STATE.separators.map(sp=>
+    `<button onclick="footerSetSep('${sp.id}')"
+      style="background:${cfg.separator===sp.id?'var(--accent)':'var(--panel)'};border:1px solid var(--border);border-radius:6px;color:${cfg.separator===sp.id?'#fff':'var(--fg)'};padding:3px 10px;font-size:13px;cursor:pointer">${esc(sp.label)}</button>`).join('');
+  document.getElementById('footer_canvas').innerHTML = cfg.lines.map((line, i)=>
+    `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;padding:6px 8px;background:var(--bg)">
+      <span style="color:var(--dim);font-size:11px">第 ${i+1} 行</span>
+      ${line.map(t=>`<span style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:12px">
+        ${esc(footerTagName(t))}<a onclick="footerRemoveTag(${i},'${t}')" style="cursor:pointer;color:var(--dim);margin-left:4px">✕</a></span>`).join('')}
+      <a onclick="footerClearLine(${i})" style="cursor:pointer;color:var(--dim);font-size:11px">清空</a>
+    </div>`).join('') + (cfg.lines.length < 3
+      ? `<a onclick="footerAddLine()" style="cursor:pointer;color:var(--accent);font-size:12px">+ 新增一行</a>` : '');
+  footerPreview();
+}
+
+function footerTagName(id){
+  const t = FOOTER_STATE?.tags.find(x=>x.id===id);
+  return t ? t.name : id;
+}
+
+async function footerPreview(){
+  if(!FOOTER_STATE) return;
+  try{
+    const r = await apiFetch('/api/footer/preview',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({config:FOOTER_STATE.config})});
+    const d = await r.json();
+    document.getElementById('footer_preview').textContent = (d.preview||[]).join('\n') || '（空：所有 tag 都被关掉了）';
+  }catch(e){
+    document.getElementById('footer_preview').textContent = '预览失败：'+e.message;
+  }
+}
+
+function footerAddTag(id){
+  const cfg = FOOTER_STATE.config;
+  if(!cfg.lines.length) cfg.lines = [[]];
+  const line = cfg.lines[cfg.lines.length-1];
+  if(line.includes(id)) { footerPreview(); return; }
+  if(line.length >= 8) { toast('一行最多 8 个 tag'); return; }
+  line.push(id);
+  footerRender();
+}
+function footerRemoveTag(lineIdx, id){
+  const cfg = FOOTER_STATE.config;
+  cfg.lines[lineIdx] = cfg.lines[lineIdx].filter(t=>t!==id);
+  cfg.lines = cfg.lines.filter(l=>l.length);
+  footerRender();
+}
+function footerClearLine(lineIdx){
+  const cfg = FOOTER_STATE.config;
+  cfg.lines.splice(lineIdx,1);
+  if(!cfg.lines.length) cfg.lines=[[]];
+  footerRender();
+}
+function footerAddLine(){
+  if(FOOTER_STATE.config.lines.length>=3) return;
+  FOOTER_STATE.config.lines.push([]);
+  footerRender();
+}
+function footerSetSep(k){ FOOTER_STATE.config.separator = k; footerRender(); }
+function footerPreset(id){
+  const p = FOOTER_STATE.presets.find(x=>x.id===id);
+  if(!p) return;
+  FOOTER_STATE.config.separator = p.config.separator;
+  FOOTER_STATE.config.lines = p.config.lines.map(l=>[...l]);
+  footerRender();
+}
+function footerReset(){
+  footerPreset('perf');
+  document.getElementById('footer_msg').textContent = '已套用默认模板，点保存生效';
+}
+async function footerSave(){
+  try{
+    const r = await apiFetch('/api/footer',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({config:FOOTER_STATE.config})});
+    const d = await r.json();
+    FOOTER_STATE.config = d.config;
+    document.getElementById('footer_msg').textContent = '✅ 已保存（重启对应工具后生效）';
+    footerRender();
+  }catch(e){
+    document.getElementById('footer_msg').textContent = '保存失败：'+e.message;
+  }
+}
+
 /* ---------------- 界面汉化 ---------------- */
 function i18nBadge(a){
   if(!a.available) return {t:'不可用', c:'var(--dim)'};

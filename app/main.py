@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from urllib.parse import urlsplit
 
-from . import archive, backup, bundle, categories as catmod, ccswitch, cloud, configview, detect, download, engines, env as envmod, installer, launch, localize, meta, patchwork, providers, registry, whale
+from . import archive, backup, bundle, categories as catmod, ccswitch, cloud, configview, detect, download, engines, env as envmod, footer, installer, launch, localize, meta, patchwork, providers, registry, whale
 from .paths import relative_target
 from .safefs import ensure_private_dir
 
@@ -937,6 +937,29 @@ def api_save_settings(req: SettingsReq) -> dict:
         patch["export"] = cfg
     cloud.save_settings(patch)
     return {"saved": True}
+
+
+class FooterReq(BaseModel):
+    config: dict | None = None
+    agent_id: str | None = None
+
+
+@app.get("/api/footer")
+async def api_footer(agent_id: str | None = None) -> dict:
+    return await asyncio.to_thread(footer.catalog, agent_id)
+
+
+@app.post("/api/footer")
+async def api_footer_save(req: FooterReq) -> dict:
+    saved = await asyncio.to_thread(footer.save_config, req.config or {})
+    return {"saved": True, "config": saved,
+            "preview": footer.render_lines(saved)}
+
+
+@app.post("/api/footer/preview")
+async def api_footer_preview(req: FooterReq) -> dict:
+    cfg = footer.normalize(req.config or {})
+    return {"config": cfg, "preview": footer.render_lines(cfg)}
 
 
 async def _ensure_i18n(agent: dict) -> None:
