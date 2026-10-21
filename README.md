@@ -134,9 +134,10 @@ aac                    # 启动并自动打开 http://127.0.0.1:8600
 - 设置页「📊 状态栏编辑器」右侧实时预览，勾 tag 就插进去；三套预设：性能三行、极简一行、全部信息
 - **每个工具各存一份**：`通用默认` / `Pi` / `Claude Code` / `Codex` 四个槽位，改哪个只影响哪个；没单独设过的工具跟着「通用默认」走，「这套配置复制到 →」可一键搬到别家
 - **不编数字**：拿不到就不显示。速度算不出来整段不出现（不写 `— 字/秒`）、tokens 没有就不写 `?`、没有缓存样本就不显示 `0%`、进度条只在真有百分比时出现
-- **价格标 ≈**：`≈¥5.27` 是按汇率估算，不是账单；provider 没配单价时写 `¥— 未计价`，绝不显示 `¥0.00`。汇率在 `~/.aac/footer.json` 的 `cny_per_usd` 里改（默认 7.2）
+- **价格**：`5.98¥`（后缀符号，按汇率估算，不是账单）；provider 没配单价时写 `未计价`，绝不显示 `0.00¥`。汇率在 `~/.aac/footer.json` 的 `cny_per_usd` 里改（默认 7.2）
 - **长得跟老 wl-setup 一模一样**：`📂 目录 │ 🌿 分支 │ ▰▰▱▱… 26.4% 规划 │ ≈¥0.42`，第二行模型 + 内存 CPU 命中率 字速，第三行 tokens 缓存 时间；十一格进度条四档（规划/编码/拥挤/告急），拿不到占用时显示 `▱▱▱▱▱▱▱▱▱▱ ? 未知` 而不是假装 0%
-- **思考强度是真实字段**：claude 的 `effort.level` 直接读，pi 的 `thinkingLevel` 读会话状态；都没有就不显示
+- **思考强度是真实字段**：claude 的 `effort.level` 直接读，pi 的 `thinkingLevel` 读会话状态；默认跟模型连写成一格 `deepseek-v4.1-flash [high]`，想拆开就单独放 `思考强度（单独一格）` tag
+- **`已用 tokens` 是会话累计**（input + output + cacheRead，跟 pi 自带 footer 的 `totalTokens` 同口径），不是当前 prompt 大小；两者不是一个数，进度条才用当前 prompt
 - 配置在 `~/.aac/footer.json`（可用 `AAC_FOOTER_CONFIG` 覆盖），**改完 1.5 秒内生效、不用重启**；文件缺失/损坏/形状不对一律回落默认模板，绝不白屏
 - **一个渲染核心、两个宿主**：Pi 走插件层 `assets/pi-footer` → `~/.pi/pi-extensions/aac-footer`（装的时候自动关掉抢同一行的 `wl-setup.rmbFooter` 和 `statusline-pi`，卸载原样还回去）；Claude Code 走 `statusLine` + `~/.aac/bin/aac-footer` 包装脚本（换机器重装时重新生成，不写死解释器路径）
 - 拿不到的数据**不编**：claude 的 statusLine JSON 里没有 token 生成耗时，就整段不出「字/秒」；provider 没配单价时成本显示「¥— 未计价」而不是 `¥0.00`

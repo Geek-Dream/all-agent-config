@@ -30,9 +30,9 @@ import { truncateToWidth } from "@mariozechner/pi-tui";
 const CONFIG_PATH = process.env.AAC_FOOTER_CONFIG ?? path.join(os.homedir(), ".aac", "footer.json");
 const SEPARATORS: Record<string, string> = { bar: "│", space: " ", slash: "/", dot: "·" };
 const DEFAULT_LINES: string[][] = [
-  ["model", "thinking"],
-  ["mem", "cpu", "cache", "speed"],
-  ["tokens", "cache_time"],
+  ["cwd", "git", "context", "cost"],
+  ["model", "mem", "cpu", "cache", "speed"],
+  ["tokens", "cache_time", "time"],
 ];
 const MAX_LINES = 3;
 const BAR_WIDTH = 10;
@@ -243,16 +243,36 @@ function collectStats(ctx: ExtensionContext): SessionStats {
   }
   const hitRate = winInput + winCache > 0 ? (winCache / (winInput + winCache)) * 100 : null;
   const usage = ctx.getContextUsage?.();
-  const tokens = typeof usage?.tokens === "number" && usage.tokens > 0 ? usage.tokens : null;
+  // 上下文占用（= 当前这一轮 prompt 多大），进度条用它
+  const contextTokens = typeof usage?.tokens === "number" && usage.tokens > 0 ? usage.tokens : null;
   const window = usage?.contextWindow ?? ctx.model?.contextWindow ?? 0;
   const ctxPct =
-    tokens != null && window > 0 ? Math.min(100, (tokens / window) * 100) : null;
+    contextTokens != null && window > 0 ? Math.min(100, (contextTokens / window) * 100) : null;
+  // 「已用 tokens」是整段会话累计，跟 pi 自带 footer 的 ↑↓R W 口径一致；
+  // 以前错用了 contextUsage.tokens（那是当前 prompt 大小），所以数字对不上。
+  // 口径跟 pi 自带 footer 的 totalTokens 一致：input + output + cacheRead
+  //（cacheWrite 不计入，pi 自己也不算，否则两边数字对不上）
+  let total = 0;
+  for (const e of ctx.sessionManager.getBranch()) {
+    if (e.type !== "message" || e.message.role !== "assistant") continue;
+    const u = (e.message as AssistantMessage).usage as typeof u & { totalTokens?: number };
+    total += typeof u.totalTokens === "number"
+      ? u.totalTokens
+      : u.input + u.output + u.cacheRead;
+  }
+  const tokens = total > 0 ? total : null;
   return { cost, tps, hitRate, lastCacheTs, tokens, ctxPct };
 }
 
 // ---------------------------------------------------------------- 渲染
 
 type Theme = Parameters<Parameters<ExtensionContext["ui"]["setFooter"]>[0]>[1];
+
+function thinkingText(ctx: ExtensionContext, theme: Theme): string {
+  const level = ctx.thinkingLevel ?? "off";
+  const color = (THINKING_COLORS[level] ?? "muted") as any;
+  return theme.fg("dim", " [") + theme.fg(color, level) + theme.fg("dim", "]");
+}
 
 function renderTag(
   tag: string,
@@ -262,14 +282,17 @@ function renderTag(
   branch: string,
   frame: number,
   cfgRate: number,
+  inlineThinking: boolean,
 ): string | null {
   switch (tag) {
-    case "model":
-      return theme.fg("muted", ctx.model?.id ?? "no-model");
+    case "model": {
+      // 模型 + 思考等级默认连在一起写「deepseek-v4.1-flash [high]」；
+      // 这一行要是单独放了 thinking tag，就不重复
+      const name = theme.fg("muted", ctx.model?.id ?? "no-model");
+      return inlineThinking ? name + thinkingText(ctx, theme) : name;
+    }
     case "thinking": {
-      const level = ctx.thinkingLevel ?? "off";
-      const color = (THINKING_COLORS[level] ?? "muted") as any;
-      return theme.fg("dim", "[") + theme.fg(color, level) + theme.fg("dim", "]");
+      return thinkingText(ctx, theme).replace(/^ /, "");
     }
     case "mem": {
       const mem = Math.min(999, Math.round(sampleMem(Date.now())));
@@ -335,7 +358,7 @@ function renderTag(
       // ≈ 表示按汇率估算，不是账单金额；没单价时如实写未计价
       return s.cost > 0
         ? theme.bold(theme.fg("accent", `≈¥${(s.cost * cfgRate).toFixed(2)}`))
-        : theme.fg("dim", "¥— 未计价");
+        : theme.fg("dim", "未计价");
     default:
       return null;
   }
@@ -376,8 +399,9 @@ export default function aacFooter(pi: ExtensionAPI) {
           const branch = cfg.lines.some((l) => l.includes("git")) ? gitBranch(ctx) : "";
           const out: string[] = [];
           for (const line of cfg.lines) {
+            const inlineThinking = !line.includes("thinking");
             const parts = line
-              .map((tag) => renderTag(tag, s, ctx, theme, branch, frame, cfg.cnyPerUsd))
+              .map((tag) => renderTag(tag, s, ctx, theme, branch, frame, cfg.cnyPerUsd, inlineThinking))
               .filter((x): x is string => !!x);
             if (parts.length) out.push(truncateToWidth(` ${parts.join(sep)}`, width));
           }

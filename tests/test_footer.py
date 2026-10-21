@@ -25,9 +25,8 @@ class FooterConfigTests(unittest.TestCase):
         self.assertEqual(len(lines), 3)
         self.assertIn("🌿 main", lines[0])
         self.assertIn("▰▰▰▱▱▱▱▱▱▱ 26.4% 规划", lines[0])
-        self.assertIn("≈¥0.42", lines[0])
-        self.assertIn("deepseek-v4.1-flash", lines[1])
-        self.assertIn("[high]", lines[1])
+        self.assertIn("0.42¥", lines[0])
+        self.assertIn("deepseek-v4.1-flash [high]", lines[1])   # 模型和等级连写
         self.assertIn("内存 62%", lines[1])
         self.assertIn("已用 tokens：88,528", lines[2])
 
@@ -173,9 +172,10 @@ class HonestyTests(unittest.TestCase):
         for tag in ("tokens", "cache", "cache_time", "speed", "mem", "cpu", "git", "session"):
             self.assertEqual(footer.render_tag(tag, empty), "", f"{tag} 该省略")
 
-    def test_cost_is_marked_as_estimate(self):
-        self.assertEqual(footer.render_tag("cost", {"cost": 5.27}), "≈¥5.27")
-        self.assertEqual(footer.render_tag("cost", {"cost": 0}), "¥— 未计价")
+    def test_cost_uses_suffix_symbol(self):
+        """用户嫌 ≈¥5.27 丑，改后缀：5.27¥。"""
+        self.assertEqual(footer.render_tag("cost", {"cost": 5.27}), "5.27¥")
+        self.assertEqual(footer.render_tag("cost", {"cost": 0}), "未计价")
         self.assertEqual(footer.render_tag("cost", {"cost": None}), "")
 
     def test_rate_is_configurable(self):
@@ -195,7 +195,7 @@ class HonestyTests(unittest.TestCase):
                                           "cache_read_input_tokens": 0,
                                           "cache_creation_input_tokens": 0}}}
             path.write_text(_json.dumps(zero) + "\n", encoding="utf-8")
-            self.assertIsNone(footer._last_usage_from_transcript(str(path)))
+            self.assertIsNone(footer._transcript_stats(str(path)))
 
     def test_real_usage_transcript_gives_tokens(self):
         import json as _json
@@ -206,8 +206,8 @@ class HonestyTests(unittest.TestCase):
                                          "cache_read_input_tokens": 400,
                                          "cache_creation_input_tokens": 0}}}
             path.write_text(_json.dumps(row) + "\n", encoding="utf-8")
-            got = footer._last_usage_from_transcript(str(path))
-            self.assertEqual(got["tokens"], 1400)
+            got = footer._transcript_stats(str(path))
+            self.assertEqual(got["tokens"], 1400)  # 100 + 900 + 400，不含 cacheWrite
             self.assertAlmostEqual(got["cache_hit"], 80.0)
 
     def test_claude_payload_uses_real_effort_level(self):

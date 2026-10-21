@@ -40,14 +40,14 @@ DEFAULT_SEPARATOR = "bar"
 # tag 定义：id -> (中文名, 说明, 示例值生产者)
 TAGS: dict[str, dict] = {
     "model": {"name": "模型名称", "desc": "当前用的模型", "sample": "deepseek-v4.1-flash"},
-    "thinking": {"name": "思考强度", "desc": "如 [high] / [low]", "sample": "[high]"},
+    "thinking": {"name": "思考强度（单独一格）", "desc": "如 [high] / [low]", "sample": "[high]"},
     "mem": {"name": "内存", "desc": "内存占用百分比", "sample": "内存 62%"},
     "cpu": {"name": "CPU", "desc": "CPU 占用百分比", "sample": "CPU 37%"},
     "cache": {"name": "缓存命中率", "desc": "同心圆 + 百分比", "sample": "⊙ 99%"},
     "speed": {"name": "输出速度", "desc": "字/秒", "sample": "76.5 字/秒"},
     "context": {"name": "上下文进度", "desc": "十格进度条 + 规划/编码/拥挤/告急",
                 "sample": "▰▰▱▱▱▱▱▱▱▱ 26.4% 规划"},
-    "tokens": {"name": "已用 tokens", "desc": "本会话累计", "sample": "已用 tokens：88,528"},
+    "tokens": {"name": "已用 tokens", "desc": "本会话累计（输入+输出+缓存读写）", "sample": "已用 tokens：88,528"},
     "cache_time": {"name": "缓存状态", "desc": "倒计时或已过期", "sample": "⏳ 缓存已过期"},
     "cwd": {"name": "当前目录", "desc": "工作目录（~ 缩写）", "sample": "~/dev/proj"},
     "git": {"name": "Git 分支", "desc": "当前分支名", "sample": " main"},
@@ -66,7 +66,7 @@ PRESETS: dict[str, dict] = {
         "desc": "模型 + 内存 CPU 命中率 字速 + tokens 缓存",
         "config": {"separator": "bar",
                    "lines": [["cwd", "git", "context", "cost"],
-                             ["model", "thinking", "mem", "cpu", "cache", "speed"],
+                             ["model", "mem", "cpu", "cache", "speed"],
                              ["tokens", "cache_time", "time"]]},
     },
     "minimal": {
@@ -79,7 +79,7 @@ PRESETS: dict[str, dict] = {
         "desc": "加目录、树叶分支、进度条、会话名、时间、花费",
         "config": {"separator": "dot",
                    "lines": [["cwd", "git", "context", "cost"],
-                             ["model", "thinking", "mem", "cpu", "cache", "speed"],
+                             ["model", "mem", "cpu", "cache", "speed"],
                              ["tokens", "cache_time", "session", "time"]]},
     },
 }
@@ -236,8 +236,11 @@ def sample_stats() -> dict:
 def render_tag(tag: str, stats: dict) -> str:
     """单个 tag → 文本。数据缺失就返回空串，由调用方决定怎么省略。"""
     if tag == "model":
-        value = stats.get("model") or ""
-        return str(value)
+        value = str(stats.get("model") or "")
+        level = stats.get("thinking")
+        if value and level and stats.get("_inline_thinking"):
+            value = f"{value} [{level}]"
+        return value
     if tag == "thinking":
         value = stats.get("thinking")
         return f"[{value}]" if value else ""
@@ -290,8 +293,7 @@ def render_tag(tag: str, stats: dict) -> str:
         if value is None:
             return ""
         # provider 没配单价时算出来是 0，这时候不能说"花了一分钱"——如实写未计价。
-        # 有值时加 ≈：这是按汇率估算的，不是账单金额。
-        return f"≈¥{float(value):.2f}" if float(value) > 0 else "¥— 未计价"
+        return f"{float(value):.2f}¥" if float(value) > 0 else "未计价"
     return ""
 
 
@@ -305,7 +307,9 @@ def render_lines(config: dict | None = None, stats: dict | None = None,
     joiner = f" {SEPARATORS[cfg['separator']]} "
     lines: list[str] = []
     for line in cfg["lines"]:
-        parts = [text for text in (render_tag(tag, data) for tag in line) if text]
+        # 模型和思考等级默认连写「model [high]」；这一行单独有 thinking tag 就不重复
+        row = {**data, "_inline_thinking": "thinking" not in line}
+        parts = [text for text in (render_tag(tag, row) for tag in line) if text]
         if parts:
             lines.append(joiner.join(parts))
     return lines
@@ -392,7 +396,7 @@ def stats_from_claude_payload(payload: dict) -> dict:
         elif isinstance(size, (int, float)) and size > 0 and isinstance(used, (int, float)):
             ctx_pct = min(100.0, used / size * 100)
     stats["ctx_pct"] = ctx_pct
-    usage = _last_usage_from_transcript(payload.get("transcript_path"))
+    usage = _transcript_stats(payload.get("transcript_path"))
     if usage:
         stats["tokens"] = usage.get("tokens")
         stats["cache_hit"] = usage.get("cache_hit")
@@ -472,21 +476,37 @@ def _git_branch(cwd: str) -> str:
     return out.stdout.strip() if out.returncode == 0 else ""
 
 
-def _last_usage_from_transcript(path) -> dict | None:
-    """从 claude 的 transcript（jsonl）里捞最近一条有真实用量的助手消息。
+_TRANSCRIPT_CACHE: dict[str, tuple[int, int, dict]] = {}
 
-    这是拿到「已用 tokens / 缓存命中」的唯一途径：statusLine 的 JSON 里没有。
-    全部为 0（走第三方代理时很常见）就当没有数据返回 None，
-    由渲染层整段省略——不显示 "?"，也不显示 0。
+
+def _transcript_stats(path) -> dict | None:
+    """从 claude 的 transcript（jsonl）算会话累计用量。
+
+    两件事必须分清（之前混了，导致 tokens 数字对不上）：
+      · tokens     = 整段会话累计（input + output + 缓存读，跟 pi 的 totalTokens 同口径）
+      · cache_hit  = 最近 10 条助手消息的缓存命中率
+    全部为 0（走第三方代理时常见）就当没有数据，返回 None，让渲染层整段省略。
     """
     if not path:
         return None
     try:
-        with open(str(path), "r", encoding="utf-8", errors="replace") as handle:
-            lines = handle.readlines()[-200:]
+        stat = os.stat(str(path))
     except OSError:
         return None
-    for raw in reversed(lines):
+    key = str(path)
+    cached = _TRANSCRIPT_CACHE.get(key)
+    if cached and cached[0] == stat.st_size and cached[1] == int(stat.st_mtime):
+        return cached[2] or None
+    try:
+        with open(key, "r", encoding="utf-8", errors="replace") as handle:
+            lines = handle.readlines()
+    except OSError:
+        return None
+
+    total = 0
+    recent: list[tuple[int, int]] = []
+    messages: list[tuple[int, int, int, int, object]] = []
+    for raw in lines:
         raw = raw.strip()
         if not raw:
             continue
@@ -506,26 +526,34 @@ def _last_usage_from_transcript(path) -> dict | None:
             output_tokens = int(usage.get("output_tokens") or 0)
         except (TypeError, ValueError):
             continue
-        total = input_tokens + cache_read + cache_write + output_tokens
-        if total <= 0:
-            continue                      # 代理返回空用量：不是 0 花费，是没有数据
-        window = input_tokens + cache_read
-        left = None
+        # 口径跟 pi 一致：input + output + cacheRead（cacheWrite 不计）
+        total += input_tokens + output_tokens + cache_read
+        recent.append((input_tokens, cache_read))
         if cache_read or cache_write:
-            stamp = entry.get("timestamp")
-            if isinstance(stamp, str):
-                try:
-                    when = datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
-                    age = (datetime.datetime.now(datetime.timezone.utc) - when).total_seconds()
-                    left = int(CACHE_TTL_MS - age * 1000)
-                except (ValueError, TypeError):
-                    left = None
-            else:
-                left = None
-        return {"tokens": total,
-                "cache_hit": (cache_read / window * 100) if window else None,
-                "cache_left_ms": left}
-    return None
+            messages.append((cache_read, input_tokens, cache_write, output_tokens,
+                             entry.get("timestamp")))
+
+    result: dict = {}
+    if total > 0:
+        result["tokens"] = total
+    window = recent[-10:]
+    win_input = sum(item[0] for item in window)
+    win_cache = sum(item[1] for item in window)
+    if win_input + win_cache > 0:
+        result["cache_hit"] = win_cache / (win_input + win_cache) * 100
+    if messages:
+        stamp = messages[-1][4]
+        if isinstance(stamp, str):
+            try:
+                when = datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                age = (datetime.datetime.now(datetime.timezone.utc) - when).total_seconds()
+                result["cache_left_ms"] = int(CACHE_TTL_MS - age * 1000)
+            except (ValueError, TypeError):
+                pass
+    if len(_TRANSCRIPT_CACHE) > 32:
+        _TRANSCRIPT_CACHE.clear()
+    _TRANSCRIPT_CACHE[key] = (stat.st_size, int(stat.st_mtime), result)
+    return result or None
 
 
 def render_from_stdin(agent_id: str | None = None) -> str:
