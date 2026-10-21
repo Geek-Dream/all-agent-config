@@ -222,9 +222,28 @@ function pick(): string {
 
 export default function (pi: ExtensionAPI) {
   pi.on("turn_start", async (_event, ctx) => {
-    ctx.ui.setWorkingMessage(pick());
+    const line = pick();
+    try {
+      ctx.ui.setWorkingMessage(line);
+    } catch {
+      return;
+    }
+    // 其它扩展（whimsical 等）也会在同一次 turn_start 里写这一行，而 pi 按
+    // 包类型排序加载：本地目录扩展排在 git 包之前，所以鲸鱼妹总是先写、随后
+    // 被 whimsical 覆盖。延后一拍再写一次，把最后一句话留给自己。
+    setTimeout(() => {
+      try {
+        ctx.ui.setWorkingMessage(line);
+      } catch {
+        // /new、/fork、会话切换后 ctx 会失效，忽略即可
+      }
+    }, 0);
   });
   pi.on("turn_end", async (_event, ctx) => {
-    ctx.ui.setWorkingMessage(); // 复位，下一轮再抽
+    try {
+      ctx.ui.setWorkingMessage(); // 复位，下一轮再抽
+    } catch {
+      /* 同上：会话替换后的旧 ctx */
+    }
   });
 }
