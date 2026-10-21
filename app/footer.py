@@ -45,6 +45,8 @@ TAGS: dict[str, dict] = {
     "cpu": {"name": "CPU", "desc": "CPU 占用百分比", "sample": "CPU 37%"},
     "cache": {"name": "缓存命中率", "desc": "同心圆 + 百分比", "sample": "⊙ 99%"},
     "speed": {"name": "输出速度", "desc": "字/秒", "sample": "76.5 字/秒"},
+    "context": {"name": "上下文进度", "desc": "十格进度条 + 规划/编码/拥挤/告急",
+                "sample": "▰▰▱▱▱▱▱▱▱▱ 26.4% 规划"},
     "tokens": {"name": "已用 tokens", "desc": "本会话累计", "sample": "已用 tokens：88,528"},
     "cache_time": {"name": "缓存状态", "desc": "倒计时或已过期", "sample": "⏳ 缓存已过期"},
     "cwd": {"name": "当前目录", "desc": "工作目录（~ 缩写）", "sample": "~/dev/proj"},
@@ -63,21 +65,22 @@ PRESETS: dict[str, dict] = {
         "name": "性能三行（当前效果）",
         "desc": "模型 + 内存 CPU 命中率 字速 + tokens 缓存",
         "config": {"separator": "bar",
-                   "lines": [["model", "thinking"], ["mem", "cpu", "cache", "speed"],
-                             ["tokens", "cache_time"]]},
+                   "lines": [["cwd", "git", "context", "cost"],
+                             ["model", "thinking", "mem", "cpu", "cache", "speed"],
+                             ["tokens", "cache_time", "time"]]},
     },
     "minimal": {
         "name": "极简一行",
-        "desc": "只留模型和已用 tokens",
-        "config": {"separator": "bar", "lines": [["model", "tokens"]]},
+        "desc": "只留模型、进度条和已用 tokens",
+        "config": {"separator": "bar", "lines": [["model", "context", "tokens"]]},
     },
     "full": {
         "name": "全量信息",
-        "desc": "加目录、git 分支、会话名、时间、花费",
+        "desc": "加目录、树叶分支、进度条、会话名、时间、花费",
         "config": {"separator": "dot",
-                   "lines": [["model", "thinking", "git", "cwd"],
-                             ["mem", "cpu", "cache", "speed"],
-                             ["tokens", "cache_time", "cost", "time"]]},
+                   "lines": [["cwd", "git", "context", "cost"],
+                             ["model", "thinking", "mem", "cpu", "cache", "speed"],
+                             ["tokens", "cache_time", "session", "time"]]},
     },
 }
 
@@ -218,6 +221,7 @@ def sample_stats() -> dict:
         "mem": 62,
         "cpu": 37,
         "cache_hit": 99,
+        "ctx_pct": 26.4,
         "speed": 76.5,
         "tokens": 88528,
         "cache_left_ms": -1,
@@ -246,6 +250,15 @@ def render_tag(tag: str, stats: dict) -> str:
     if tag == "cache":
         value = stats.get("cache_hit")
         return f"⊙ {int(value)}%" if value is not None else ""
+    if tag == "context":
+        pct = stats.get("ctx_pct")
+        if pct is None:
+            return "▱" * 10 + " ? 未知"
+        pct = max(0.0, min(100.0, float(pct)))
+        zone = ("规划", "success") if pct < 40 else ("编码", "accent") \
+            if pct < 70 else ("拥挤", "warning") if pct < 80 else ("告急", "error")
+        filled = round(pct / 100 * 10)
+        return "▰" * filled + "▱" * (10 - filled) + f" {pct:.1f}% {zone[0]}"
     if tag == "speed":
         value = stats.get("speed")
         # 拿不到速度就整段不出（claude 状态栏给不了 token 生成耗时）
@@ -266,7 +279,7 @@ def render_tag(tag: str, stats: dict) -> str:
         return f"📂 {short_path(str(value))}" if value else ""
     if tag == "git":
         value = stats.get("git")
-        return f"⎇ {value}" if value else ""
+        return f"🌿 {value}" if value else ""
     if tag == "session":
         value = stats.get("session")
         return f"会话 {value}" if value else ""
@@ -368,6 +381,17 @@ def stats_from_claude_payload(payload: dict) -> dict:
     mem = mem_percent()
     if mem is not None:
         stats["mem"] = mem
+    ctx_pct = None
+    window = payload.get("context_window")
+    if isinstance(window, dict):
+        used_pct = window.get("used_percentage")
+        size = window.get("context_window_size")
+        used = window.get("total_input_tokens")
+        if isinstance(used_pct, (int, float)):
+            ctx_pct = float(used_pct)
+        elif isinstance(size, (int, float)) and size > 0 and isinstance(used, (int, float)):
+            ctx_pct = min(100.0, used / size * 100)
+    stats["ctx_pct"] = ctx_pct
     usage = _last_usage_from_transcript(payload.get("transcript_path"))
     if usage:
         stats["tokens"] = usage.get("tokens")

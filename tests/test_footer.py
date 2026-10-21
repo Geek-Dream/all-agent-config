@@ -20,12 +20,25 @@ class FooterConfigTests(unittest.TestCase):
             self.addCleanup(mocked.stop)
 
     def test_default_config_renders_three_lines_like_before(self):
+        """默认模板 = 老 wl-setup 那个样子：目录 · 🌿分支 · 进度条 · 花费。"""
         lines = footer.render_lines()
         self.assertEqual(len(lines), 3)
-        self.assertIn("deepseek-v4.1-flash", lines[0])
-        self.assertIn("[high]", lines[0])
+        self.assertIn("🌿 main", lines[0])
+        self.assertIn("▰▰▰▱▱▱▱▱▱▱ 26.4% 规划", lines[0])
+        self.assertIn("≈¥0.42", lines[0])
+        self.assertIn("deepseek-v4.1-flash", lines[1])
+        self.assertIn("[high]", lines[1])
         self.assertIn("内存 62%", lines[1])
         self.assertIn("已用 tokens：88,528", lines[2])
+
+    def test_context_bar_stages(self):
+        """四档：规划 / 编码 / 拥挤 / 告急，未知时如实写 ? 未知。"""
+        cases = {10: "规划", 55: "编码", 75: "拥挤", 95: "告急"}
+        for pct, label in cases.items():
+            with self.subTest(pct=pct):
+                self.assertIn(label, footer.render_tag("context", {"ctx_pct": pct}))
+        self.assertEqual(footer.render_tag("context", {"ctx_pct": None}),
+                         "▱" * 10 + " ? 未知")
 
     def test_every_tag_renders_something_with_sample_stats(self):
         for tag in footer.TAG_ORDER:

@@ -35,6 +35,15 @@ const DEFAULT_LINES: string[][] = [
   ["tokens", "cache_time"],
 ];
 const MAX_LINES = 3;
+const BAR_WIDTH = 10;
+
+/** 上下文占用阶段：规划 → 编码 → 拥挤 → 告急 */
+function zoneOf(pct: number): { label: string; color: ZoneColor } {
+  if (pct < 40) return { label: "规划", color: "success" };
+  if (pct < 70) return { label: "编码", color: "accent" };
+  if (pct < 80) return { label: "拥挤", color: "warning" };
+  return { label: "告急", color: "error" };
+}
 
 interface FooterConfig {
   enabled: boolean;
@@ -195,6 +204,7 @@ interface SessionStats {
   hitRate: number | null;  // null = 这个会话还没有缓存样本
   lastCacheTs: number;
   tokens: number | null;
+  ctxPct: number | null;
 }
 
 function collectStats(ctx: ExtensionContext): SessionStats {
@@ -234,7 +244,10 @@ function collectStats(ctx: ExtensionContext): SessionStats {
   const hitRate = winInput + winCache > 0 ? (winCache / (winInput + winCache)) * 100 : null;
   const usage = ctx.getContextUsage?.();
   const tokens = typeof usage?.tokens === "number" && usage.tokens > 0 ? usage.tokens : null;
-  return { cost, tps, hitRate, lastCacheTs, tokens };
+  const window = usage?.contextWindow ?? ctx.model?.contextWindow ?? 0;
+  const ctxPct =
+    tokens != null && window > 0 ? Math.min(100, (tokens / window) * 100) : null;
+  return { cost, tps, hitRate, lastCacheTs, tokens, ctxPct };
 }
 
 // ---------------------------------------------------------------- 渲染
@@ -276,6 +289,21 @@ function renderTag(
         theme.fg(color, `${rate.toFixed(0)}%`)
       );
     }
+    case "context": {
+      const pct = s.ctxPct;
+      const zone = pct == null ? { label: "未知", color: "dim" as ZoneColor } : zoneOf(pct);
+      const filled = pct == null ? 0 : Math.round((pct / 100) * BAR_WIDTH);
+      const bar =
+        theme.fg(zone.color, "▰".repeat(filled)) +
+        theme.fg("dim", "▱".repeat(BAR_WIDTH - filled));
+      return (
+        bar +
+        theme.fg("dim", " ") +
+        theme.fg(zone.color, pct == null ? "?" : `${pct.toFixed(1)}%`) +
+        theme.fg("dim", " ") +
+        theme.fg(zone.color, zone.label)
+      );
+    }
     case "speed":
       return s.tps != null && s.tps > 0
         ? theme.fg("text", s.tps.toFixed(1)) + theme.fg("dim", " 字/秒")
@@ -296,7 +324,7 @@ function renderTag(
       return theme.bold(theme.fg("accent", `📂 ${dir}`));
     }
     case "git":
-      return branch ? theme.fg("success", `⎇ ${branch}`) : null;
+      return branch ? theme.fg("success", `🌿 ${branch}`) : null;
     case "session": {
       const name = (ctx.sessionManager as any).getSessionName?.() ?? "";
       return name ? theme.fg("dim", `会话 ${name}`) : null;
