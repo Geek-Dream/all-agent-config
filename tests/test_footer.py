@@ -94,3 +94,58 @@ class FooterConfigTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SlotTests(unittest.TestCase):
+    """pi / claude / codex 各存一份：改一个不能动到别的。"""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="aac-footer-slot-")
+        self.addCleanup(self.temp.cleanup)
+        self.home = Path(self.temp.name)
+        for name, value in {"CONFIG_FILE": self.home / ".aac" / "footer.json",
+                            "CONFIG_DIR": self.home / ".aac"}.items():
+            p = patch.object(footer, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_default_slot_writes_global(self):
+        full = footer.load_config()
+        saved = footer.save_slot(full, "default",
+                                 {"separator": "slash", "lines": [["model"]]})
+        self.assertEqual(saved["separator"], "slash")
+        self.assertEqual(saved["lines"], [["model"]])
+
+    def test_agent_slot_does_not_touch_global(self):
+        full = footer.load_config()
+        footer.save_slot(full, "default", {"separator": "bar", "lines": [["model", "cpu"]]})
+        full = footer.load_config()
+        saved = footer.save_slot(full, "pi", {"separator": "dot", "lines": [["cwd"]]})
+        self.assertEqual(saved["lines"], [["model", "cpu"]])   # 通用没变
+        self.assertEqual(saved["agents"]["pi"]["lines"], [["cwd"]])
+        self.assertEqual(footer.slot_config(saved, "pi")["separator"], "dot")
+        self.assertEqual(footer.slot_config(saved, "claude")["lines"], [["model", "cpu"]])
+
+    def test_two_agents_keep_their_own_configs(self):
+        full = footer.load_config()
+        full = footer.save_slot(full, "pi", {"separator": "bar", "lines": [["model"]]})
+        full = footer.save_slot(full, "claude", {"separator": "dot", "lines": [["cost"]]})
+        self.assertEqual(footer.slot_config(full, "pi")["lines"], [["model"]])
+        self.assertEqual(footer.slot_config(full, "claude")["lines"], [["cost"]])
+        self.assertEqual(sorted(full["agents"]), ["claude", "pi"])
+
+    def test_catalog_reports_slots_and_overrides(self):
+        full = footer.load_config()
+        footer.save_slot(full, "codex", {"separator": "bar", "lines": [["time"]]})
+        cat = footer.catalog("codex")
+        self.assertEqual(cat["slot"], "codex")
+        self.assertEqual(cat["overrides"], ["codex"])
+        self.assertEqual(cat["editing"]["lines"], [["time"]])
+        self.assertIn("default", [s["id"] for s in cat["slots"]])
+
+    def test_unknown_tags_and_shapes_are_dropped(self):
+        full = footer.load_config()
+        saved = footer.save_slot(full, "pi", {"separator": "nope",
+                                              "lines": [["model", "evil", 5]]})
+        self.assertEqual(saved["agents"]["pi"]["separator"], "bar")
+        self.assertEqual(saved["agents"]["pi"]["lines"], [["model"]])

@@ -951,15 +951,21 @@ async def api_footer(agent_id: str | None = None) -> dict:
 
 @app.post("/api/footer")
 async def api_footer_save(req: FooterReq) -> dict:
-    saved = await asyncio.to_thread(footer.save_config, req.config or {})
-    return {"saved": True, "config": saved,
-            "preview": footer.render_lines(saved)}
+    """保存某个槽位（default / pi / claude / codex）的状态栏。"""
+    full = await asyncio.to_thread(footer.load_config)
+    saved = await asyncio.to_thread(footer.save_slot, full, req.agent_id, req.config or {})
+    slot = footer.slot_config(saved, req.agent_id)
+    return {"saved": True, "config": saved, "slot_config": slot,
+            "preview": footer.render_lines(slot)}
 
 
 @app.post("/api/footer/preview")
 async def api_footer_preview(req: FooterReq) -> dict:
-    cfg = footer.normalize(req.config or {})
-    return {"config": cfg, "preview": footer.render_lines(cfg)}
+    full = await asyncio.to_thread(footer.load_config)
+    merged = await asyncio.to_thread(footer.save_slot, full, req.agent_id, req.config or {})
+    slot = footer.slot_config(merged, req.agent_id)
+    return {"config": merged, "slot_config": slot,
+            "preview": footer.render_lines(slot)}
 
 
 async def _ensure_i18n(agent: dict) -> None:

@@ -132,6 +132,7 @@ aac                    # 启动并自动打开 http://127.0.0.1:8600
 ### 状态栏编辑器（Pi 扩展 aac-footer + Claude Code statusLine）
 - 状态栏从「源码里写死的三行」变成**配置驱动**：13 个 tag（模型 / 思考强度 / 内存 / CPU / 命中率 / 字/秒 / 已用 tokens / 缓存倒计时 / git 分支 / 目录 / 会话名 / 时间 / 成本¥），最多 3 行、每行最多 8 个，分隔符四选一（`│` / 空格 / `/` / `·`）
 - 设置页「📊 状态栏编辑器」右侧实时预览，勾 tag 就插进去；三套预设：性能三行、极简一行、全部信息
+- **每个工具各存一份**：`通用默认` / `Pi` / `Claude Code` / `Codex` 四个槽位，改哪个只影响哪个；没单独设过的工具跟着「通用默认」走，「这套配置复制到 →」可一键搬到别家
 - 配置在 `~/.aac/footer.json`（可用 `AAC_FOOTER_CONFIG` 覆盖），**改完 1.5 秒内生效、不用重启**；文件缺失/损坏/形状不对一律回落默认模板，绝不白屏
 - **一个渲染核心、两个宿主**：Pi 走插件层 `assets/pi-footer` → `~/.pi/pi-extensions/aac-footer`（装的时候自动关掉抢同一行的 `wl-setup.rmbFooter` 和 `statusline-pi`，卸载原样还回去）；Claude Code 走 `statusLine` + `~/.aac/bin/aac-footer` 包装脚本（换机器重装时重新生成，不写死解释器路径）
 - 拿不到的数据**不编**：claude 的 statusLine JSON 里没有 token 生成耗时，就整段不出「字/秒」；provider 没配单价时成本显示「¥— 未计价」而不是 `¥0.00`

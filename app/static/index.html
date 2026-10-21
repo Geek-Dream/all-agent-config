@@ -559,6 +559,62 @@
     color:var(--fg); padding:6px 8px; font-size:13px; font-family:inherit;
   }
   .pf-grid input:focus, .pf-grid select:focus { outline:none; border-color:var(--accent); }
+/* ---------------- 状态栏编辑器 ---------------- */
+#settingsMask .modal{width:min(1060px,96vw)}
+.ft-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.ft-head b{font-size:14px}
+.ft-hint{font-size:12px;color:var(--dim)}
+.ft-card{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:18px;background:var(--panel2)}
+.ft-tabs{display:flex;gap:4px;padding:3px;background:var(--bg);border:1px solid var(--border);border-radius:10px;width:fit-content;margin-bottom:14px;flex-wrap:wrap}
+.ft-tab{border:0;background:transparent;color:var(--dim);font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.ft-tab:hover{color:var(--fg)}
+.ft-tab.on{background:var(--panel);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.14);font-weight:600}
+.ft-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:middle}
+.ft-grid{display:grid;grid-template-columns:minmax(280px,0.95fr) minmax(340px,1.05fr);gap:22px}
+@media (max-width:820px){.ft-grid{grid-template-columns:1fr}}
+.ft-col{min-width:0}
+.ft-label{font-size:11.5px;color:var(--dim);margin:0 0 7px}
+.ft-label-inline{margin:0;white-space:nowrap}
+.ft-dim{color:var(--dim);font-weight:400;font-size:11px}
+.ft-label .ft-dim{margin-left:6px}
+.ft-tags{display:flex;flex-wrap:wrap;gap:6px}
+.ft-chip{border:1px solid var(--border);background:var(--panel);color:var(--fg);border-radius:999px;padding:5px 11px;font-size:12px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;transition:border-color .12s,transform .12s}
+.ft-chip:hover{border-color:var(--accent);transform:translateY(-1px)}
+.ft-chip em{color:var(--dim);font-style:normal;font-size:11px;max-width:112px;overflow:hidden;text-overflow:ellipsis}
+.ft-chip.used{opacity:.5}
+.ft-chip.used:hover{opacity:1}
+.ft-presets{display:flex;flex-wrap:wrap;gap:6px}
+.ft-preset{border:1px solid var(--border);background:var(--panel);color:var(--fg);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap}
+.ft-preset:hover{border-color:var(--accent)}
+.ft-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.ft-seps{display:inline-flex;gap:4px;padding:3px;background:var(--bg);border:1px solid var(--border);border-radius:8px}
+.ft-sep{border:0;background:transparent;color:var(--fg);font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;line-height:1.35;display:inline-flex;align-items:center;gap:5px}
+.ft-sep:hover{background:var(--panel)}
+.ft-sep.on{background:var(--accent);color:#1f2328;font-weight:600}
+.ft-sep i{font-style:normal;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700}
+.ft-lines{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.ft-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;border:1px solid var(--border);border-radius:9px;padding:7px 9px;background:var(--bg);min-height:38px}
+.ft-line-no{color:var(--dim);font-size:10.5px;min-width:34px}
+.ft-slot-tag{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:3px 7px;font-size:12px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.ft-slot-tag a{color:var(--dim);cursor:pointer;font-size:11px;line-height:1}
+.ft-slot-tag a:hover{color:var(--accent)}
+.ft-link{color:var(--dim);font-size:11px;cursor:pointer;white-space:nowrap;margin-left:auto}
+.ft-link:hover{color:var(--accent)}
+.ft-link.add{color:var(--accent);font-size:12px;margin-left:0}
+.ft-empty{color:var(--dim);font-size:11.5px}
+.ft-preview{margin:0 0 12px;padding:12px 14px;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:9px;background:var(--bg);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;white-space:pre-wrap;line-height:1.7;min-height:58px}
+.ft-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.ft-copy{margin-bottom:0}
+.ft-btn{border:1px solid var(--border);background:var(--panel);color:var(--fg);border-radius:8px;padding:6px 13px;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.ft-btn:hover{border-color:var(--accent)}
+.ft-primary{background:linear-gradient(180deg,#ffa14d,#f97316);color:#1f2328;border-color:#f97316;font-weight:600}
+.ft-msg{font-size:12px;color:var(--dim)}
+.ft-usage{margin-top:16px;padding-top:12px;border-top:1px dashed var(--border);font-size:11.5px;color:var(--dim);line-height:1.9}
+.ft-usage b{color:var(--fg);font-weight:600}
+.ft-usage code{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px}
+.ft-install{display:flex;gap:26px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)}
+.ft-inst{display:flex;align-items:center;gap:8px;font-size:12px;white-space:nowrap}
+
 </style>
 </head>
 <body>
@@ -810,35 +866,49 @@
       </div>
       <div style="font-size:14px;margin-bottom:6px"><b>🐳 鲸鱼妹思考提示</b>（把 pi 的 Working… 换成中文鲸鱼台词；跟着 .aac 包同步到别的电脑）</div>
       <div id="whale_row" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
-      <div style="font-size:14px;margin-bottom:6px"><b>📊 状态栏编辑器</b>（tag 拼装：点 tag 插入，右侧实时预览；pi / claude / codex 共用同一套配置）</div>
-      <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;background:var(--panel2)">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="flex:1;min-width:280px">
-            <div style="color:var(--dim);font-size:12px;margin-bottom:6px">可插入的 tag（点一下加到当前行）</div>
-            <div id="footer_tags" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-            <div style="color:var(--dim);font-size:12px;margin:10px 0 6px">模板</div>
-            <div id="footer_presets" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-          </div>
-          <div style="flex:1;min-width:320px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-              <span style="color:var(--dim);font-size:12px">分隔符</span>
-              <span id="footer_seps" style="display:flex;gap:6px"></span>
-            </div>
-            <div id="footer_canvas" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
-            <div style="color:var(--dim);font-size:12px;margin-bottom:4px">预览</div>
-            <pre id="footer_preview" style="margin:0 0 10px;padding:10px;border:1px dashed var(--border);border-radius:8px;background:var(--bg);color:var(--fg);font-size:12px;white-space:pre-wrap;line-height:1.6"></pre>
-            <div style="display:flex;align-items:center;gap:10px">
-              <button onclick="footerSave()">💾 保存并启用</button>
-              <button onclick="footerReset()">↺ 恢复默认模板</button>
-              <span id="footer_msg" style="color:var(--dim);font-size:12px"></span>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
-              <span id="footer_ext_state" style="font-size:12px;color:var(--dim)"></span>
-              <button id="footer_ext_btn" onclick="footerExtToggle()">检查中…</button>
-              <span id="footer_claude_state" style="font-size:12px;color:var(--dim)"></span>
-              <button id="footer_claude_btn" onclick="footerClaudeToggle()">检查中…</button>
+      <div class="ft-head">
+        <b>📊 状态栏编辑器</b>
+        <span class="ft-hint">tag 拼装 · Pi / Claude / Codex <b>各存一份</b>，互不影响</span>
+      </div>
+      <div class="ft-card">
+        <div class="ft-tabs" id="footer_tabs"></div>
+        <div class="ft-grid">
+          <div class="ft-col">
+            <div class="ft-label" id="footer_tag_label">可插入的 tag</div>
+            <div class="ft-tags" id="footer_tags"></div>
+            <div class="ft-label">模板</div>
+            <div class="ft-presets" id="footer_presets"></div>
+            <div class="ft-usage">
+              <div class="ft-label">这套配置谁在用</div>
+              <div><b>Pi</b> — 扩展 <code>aac-footer</code> 直接读 <code>agents.pi</code>，没设过就跟「通用默认」</div>
+              <div><b>Claude Code</b> — <code>statusLine</code> 调 <code>python -m app.footer --agent claude</code></div>
+              <div><b>Codex</b> — TUI 还没留状态栏回调点，等程序补丁；先配好存着不乱跑</div>
             </div>
           </div>
+          <div class="ft-col">
+            <div class="ft-row">
+              <span class="ft-label ft-label-inline">分隔符</span>
+              <div class="ft-seps" id="footer_seps"></div>
+            </div>
+            <div class="ft-lines" id="footer_canvas"></div>
+            <div class="ft-label">预览<span class="ft-dim">（示例数据，真实数字运行时才有）</span></div>
+            <pre class="ft-preview" id="footer_preview"></pre>
+            <div class="ft-actions">
+              <button class="ft-btn ft-primary" onclick="footerSave()">💾 保存到「<span id="footer_slot_name">通用</span>」</button>
+              <button class="ft-btn" onclick="footerReset()">↺ 套默认模板</button>
+              <span id="footer_msg" class="ft-msg"></span>
+            </div>
+            <div class="ft-actions ft-copy">
+              <span class="ft-label ft-label-inline">这套配置复制到</span>
+              <span id="footer_copy_targets" class="ft-seps"></span>
+            </div>
+          </div>
+        </div>
+        <div class="ft-install">
+          <div class="ft-inst"><span id="footer_ext_state" class="ft-dim">读取中…</span>
+            <button id="footer_ext_btn" class="ft-btn" onclick="footerExtToggle()">…</button></div>
+          <div class="ft-inst"><span id="footer_claude_state" class="ft-dim">读取中…</span>
+            <button id="footer_claude_btn" class="ft-btn" onclick="footerClaudeToggle()">…</button></div>
         </div>
       </div>
       <div style="font-size:14px;margin-bottom:6px"><b>📦 导出设置</b>（只管「对话历史」；skills / 配置再大也照导，API Key 一律随包带走）</div>
@@ -2078,11 +2148,18 @@ async function saveSettings(){
 }
 
 /* ---------------- 状态栏编辑器 ---------------- */
-let FOOTER_STATE = null;
+let FOOTER_CATALOG = null;     // 后端给的 tag / 预设 / 分隔符目录
+let FOOTER_SLOT = 'default';   // 当前编辑哪个槽位：default / pi / claude / codex
+let FOOTER_EDIT = null;        // 当前槽位正在编辑的 {enabled, separator, lines}
 
-async function footerLoad(){
+function footerDeepCopy(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+async function footerLoad(slot){
+  if(typeof slot === 'string') FOOTER_SLOT = slot;
   try{
-    FOOTER_STATE = await (await apiFetch('/api/footer')).json();
+    FOOTER_CATALOG = await (await apiFetch('/api/footer?agent_id='+encodeURIComponent(FOOTER_SLOT))).json();
+    FOOTER_SLOT = FOOTER_CATALOG.slot || 'default';
+    FOOTER_EDIT = footerDeepCopy(FOOTER_CATALOG.editing);
     footerRender();
   }catch(e){
     const box = document.getElementById('footer_msg');
@@ -2090,87 +2167,132 @@ async function footerLoad(){
   }
 }
 
+function footerSlotName(id){
+  const s = (FOOTER_CATALOG?.slots||[]).find(x=>x.id===id);
+  return s ? s.name : id;
+}
+
 function footerRender(){
-  if(!FOOTER_STATE) return;
-  const cfg = FOOTER_STATE.config;
-  const tags = document.getElementById('footer_tags');
-  tags.innerHTML = FOOTER_STATE.tags.map(t=>
-    `<button onclick="footerAddTag('${t.id}')" title="${esc(t.desc)}"
-      style="background:var(--panel);border:1px solid var(--border);border-radius:999px;color:var(--fg);padding:4px 10px;font-size:12px;cursor:pointer">
-      ${esc(t.name)}<span style="color:var(--dim)"> ${esc(t.preview)}</span></button>`).join('');
-  document.getElementById('footer_presets').innerHTML = FOOTER_STATE.presets.map(p=>
-    `<button onclick="footerPreset('${p.id}')" title="${esc(p.desc)}"
-      style="background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:5px 10px;font-size:12px;cursor:pointer">${esc(p.name)}</button>`).join('');
-  document.getElementById('footer_seps').innerHTML = FOOTER_STATE.separators.map(sp=>
-    `<button onclick="footerSetSep('${sp.id}')"
-      style="background:${cfg.separator===sp.id?'var(--accent)':'var(--panel)'};border:1px solid var(--border);border-radius:6px;color:${cfg.separator===sp.id?'#fff':'var(--fg)'};padding:3px 10px;font-size:13px;cursor:pointer">${esc(sp.label)}</button>`).join('');
-  document.getElementById('footer_canvas').innerHTML = cfg.lines.map((line, i)=>
-    `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;padding:6px 8px;background:var(--bg)">
-      <span style="color:var(--dim);font-size:11px">第 ${i+1} 行</span>
-      ${line.map(t=>`<span style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:12px">
-        ${esc(footerTagName(t))}<a onclick="footerRemoveTag(${i},'${t}')" style="cursor:pointer;color:var(--dim);margin-left:4px">✕</a></span>`).join('')}
-      <a onclick="footerClearLine(${i})" style="cursor:pointer;color:var(--dim);font-size:11px">清空</a>
-    </div>`).join('') + (cfg.lines.length < 3
-      ? `<a onclick="footerAddLine()" style="cursor:pointer;color:var(--accent);font-size:12px">+ 新增一行</a>` : '');
+  if(!FOOTER_CATALOG || !FOOTER_EDIT) return;
+  const overrides = FOOTER_CATALOG.overrides || [];
+
+  document.getElementById('footer_tabs').innerHTML = FOOTER_CATALOG.slots.map(sl=>{
+    const own = overrides.includes(sl.id);
+    return `<button class="ft-tab${sl.id===FOOTER_SLOT?' on':''}" onclick="footerLoad('${sl.id}')"
+      title="${own?'已单独设置':'跟随通用默认'}">${esc(sl.name)}${own?'<span class="ft-dot"></span>':''}</button>`;
+  }).join('');
+
+  const insertLine = Math.max(1, FOOTER_EDIT.lines.length);
+  document.getElementById('footer_tag_label').textContent =
+    `可插入的 tag（点一下追加到第 ${insertLine} 行）`;
+  const inUse = new Set(FOOTER_EDIT.lines.flat());
+  document.getElementById('footer_tags').innerHTML = FOOTER_CATALOG.tags.map(t=>
+    `<button class="ft-chip${inUse.has(t.id)?' used':''}" onclick="footerAddTag('${t.id}')" title="${esc(t.desc)}${t.id==='cwd'?'':'｜预览：'+esc(t.preview)}">
+      ${esc(t.name)}<em>${esc(t.preview)}</em></button>`).join('');
+
+  document.getElementById('footer_presets').innerHTML = FOOTER_CATALOG.presets.map(p=>
+    `<button class="ft-preset" onclick="footerPreset('${p.id}')" title="${esc(p.desc)}">${esc(p.name)}</button>`).join('');
+
+  document.getElementById('footer_seps').innerHTML = FOOTER_CATALOG.separators.map(sp=>
+    `<button class="ft-sep${FOOTER_EDIT.separator===sp.id?' on':''}" onclick="footerSetSep('${sp.id}')"
+      title="用「${esc(sp.name||sp.label)}」分隔">${sp.id==='space'?'<i>␣</i>空格':`<i>${esc(sp.label)}</i>${esc(sp.name||'')}`}</button>`).join('');
+
+  document.getElementById('footer_canvas').innerHTML = FOOTER_EDIT.lines.map((line, i)=>
+    `<div class="ft-line">
+      <span class="ft-line-no">第 ${i+1} 行</span>
+      ${line.map(t=>`<span class="ft-slot-tag">${esc(footerTagName(t))}<a onclick="footerRemoveTag(${i},'${t}')" title="移除">✕</a></span>`).join('')
+        || '<span class="ft-dim" style="margin:0">空行（点上面的 tag 加进来，或删掉这一行）</span>'}
+      <a class="ft-link" onclick="footerClearLine(${i})">清空</a>
+    </div>`).join('') + (FOOTER_EDIT.lines.length < 3
+      ? `<a class="ft-link add" onclick="footerAddLine()">+ 新增一行（最多 3 行）</a>` : '');
+
+  const others = (FOOTER_CATALOG.slots||[]).filter(sl=>sl.id!==FOOTER_SLOT);
+  document.getElementById('footer_copy_targets').innerHTML = others.map(sl=>
+    `<button class="ft-sep" onclick="footerCopyTo('${sl.id}')" title="把这套配置写进 ${esc(sl.name)}">${esc(sl.name)}</button>`).join('');
+  document.getElementById('footer_slot_name').textContent = footerSlotName(FOOTER_SLOT);
+
   footerPreview();
 }
 
 function footerTagName(id){
-  const t = FOOTER_STATE?.tags.find(x=>x.id===id);
+  const t = FOOTER_CATALOG?.tags.find(x=>x.id===id);
   return t ? t.name : id;
 }
 
 async function footerPreview(){
-  if(!FOOTER_STATE) return;
+  if(!FOOTER_CATALOG || !FOOTER_EDIT) return;
+  const box = document.getElementById('footer_preview');
   try{
     const r = await apiFetch('/api/footer/preview',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({config:FOOTER_STATE.config})});
+      body:JSON.stringify({agent_id:FOOTER_SLOT, config:FOOTER_EDIT})});
     const d = await r.json();
-    document.getElementById('footer_preview').textContent = (d.preview||[]).join('\n') || '（空：所有 tag 都被关掉了）';
+    const lines = d.preview || [];
+    box.textContent = lines.length ? lines.join('\n') : '（空：所有 tag 都被关掉了）';
   }catch(e){
-    document.getElementById('footer_preview').textContent = '预览失败：'+e.message;
+    box.textContent = '预览失败：'+e.message;
   }
 }
 
 function footerAddTag(id){
-  const cfg = FOOTER_STATE.config;
-  if(!cfg.lines.length) cfg.lines = [[]];
-  const line = cfg.lines[cfg.lines.length-1];
-  if(line.includes(id)) { footerPreview(); return; }
-  if(line.length >= 8) { toast('一行最多 8 个 tag'); return; }
+  if(!FOOTER_EDIT) return;
+  if(!FOOTER_EDIT.lines.length) FOOTER_EDIT.lines = [[]];
+  const line = FOOTER_EDIT.lines[FOOTER_EDIT.lines.length-1];
+  if(line.includes(id)){ toast('这一行已经有了'); return; }
+  if(line.length >= 8){ toast('一行最多 8 个 tag'); return; }
   line.push(id);
   footerRender();
 }
 function footerRemoveTag(lineIdx, id){
-  const cfg = FOOTER_STATE.config;
-  cfg.lines[lineIdx] = cfg.lines[lineIdx].filter(t=>t!==id);
-  cfg.lines = cfg.lines.filter(l=>l.length);
+  FOOTER_EDIT.lines[lineIdx] = FOOTER_EDIT.lines[lineIdx].filter(t=>t!==id);
+  FOOTER_EDIT.lines = FOOTER_EDIT.lines.filter(l=>l.length);
   footerRender();
 }
 function footerClearLine(lineIdx){
-  const cfg = FOOTER_STATE.config;
-  cfg.lines.splice(lineIdx,1);
-  if(!cfg.lines.length) cfg.lines=[[]];
+  FOOTER_EDIT.lines.splice(lineIdx,1);
+  if(!FOOTER_EDIT.lines.length) FOOTER_EDIT.lines=[[]];
   footerRender();
 }
 function footerAddLine(){
-  if(FOOTER_STATE.config.lines.length>=3) return;
-  FOOTER_STATE.config.lines.push([]);
+  if(FOOTER_EDIT.lines.length>=3){ toast('最多 3 行'); return; }
+  FOOTER_EDIT.lines.push([]);
   footerRender();
 }
-function footerSetSep(k){ FOOTER_STATE.config.separator = k; footerRender(); }
+function footerSetSep(k){ FOOTER_EDIT.separator = k; footerRender(); }
 function footerPreset(id){
-  const p = FOOTER_STATE.presets.find(x=>x.id===id);
+  const p = FOOTER_CATALOG?.presets.find(x=>x.id===id);
   if(!p) return;
-  FOOTER_STATE.config.separator = p.config.separator;
-  FOOTER_STATE.config.lines = p.config.lines.map(l=>[...l]);
+  FOOTER_EDIT.separator = p.config.separator;
+  FOOTER_EDIT.lines = p.config.lines.map(l=>[...l]);
+  document.getElementById('footer_msg').textContent = '已套用「'+p.name+'」，点保存生效';
   footerRender();
 }
-function footerReset(){
-  footerPreset('perf');
-  document.getElementById('footer_msg').textContent = '已套用默认模板，点保存生效';
+function footerReset(){ footerPreset('perf'); }
+
+async function footerSave(){
+  const msg = document.getElementById('footer_msg');
+  try{
+    const r = await (await apiFetch('/api/footer',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent_id:FOOTER_SLOT, config:FOOTER_EDIT})})).json();
+    msg.textContent = r.saved
+      ? '✅ 已保存到「'+footerSlotName(FOOTER_SLOT)+'」（Pi 侧 1.5 秒内自动生效）'
+      : '❌ 保存失败';
+  }catch(e){ msg.textContent = '❌ '+e.message; }
+  footerLoad(FOOTER_SLOT);
 }
+
+async function footerCopyTo(target){
+  const msg = document.getElementById('footer_msg');
+  try{
+    const r = await (await apiFetch('/api/footer',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent_id:target, config:FOOTER_EDIT})})).json();
+    msg.textContent = r.saved ? '✅ 已复制到「'+footerSlotName(target)+'」' : '❌ 复制失败';
+  }catch(e){ msg.textContent = '❌ '+e.message; }
+  footerLoad(FOOTER_SLOT);
+}
+
 async function footerExtLoad(){
   const state = document.getElementById('footer_ext_state');
   const btn = document.getElementById('footer_ext_btn');
@@ -2217,20 +2339,6 @@ async function footerExtToggle(){
     msg.textContent = r.ok ? '✅ ' + (r.message||'完成') : '❌ ' + (r.message||'失败');
   }catch(e){ msg.textContent = '❌ ' + e.message; }
   footerExtLoad();
-}
-
-async function footerSave(){
-  try{
-    const r = await apiFetch('/api/footer',{method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({config:FOOTER_STATE.config})});
-    const d = await r.json();
-    FOOTER_STATE.config = d.config;
-    document.getElementById('footer_msg').textContent = '✅ 已保存（重启对应工具后生效）';
-    footerRender();
-  }catch(e){
-    document.getElementById('footer_msg').textContent = '保存失败：'+e.message;
-  }
 }
 
 /* ---------------- 界面汉化 ---------------- */
@@ -2722,7 +2830,16 @@ loadEnv();
 
 /* 支持 ?open=settings 直接打开设置面板（截图 / 调试用） */
 if(new URLSearchParams(location.search).get('open')==='settings'){
-  setTimeout(()=>{ if(typeof openSettings==='function') openSettings(); }, 700);
+  setTimeout(()=>{
+    if(typeof openSettings==='function') openSettings();
+    /* #footer 直接滚到状态栏编辑器（截图 / 分享定位用） */
+    if(location.hash==='#footer'){
+      setTimeout(()=>{
+        const card = document.querySelector('.ft-card');
+        if(card) card.scrollIntoView({block:'center'});
+      }, 1200);
+    }
+  }, 700);
 }
 
 /* 支持 #config-<agentId> 直接打开某个工具的配置详情 */

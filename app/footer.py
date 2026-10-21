@@ -48,12 +48,14 @@ TAGS: dict[str, dict] = {
     "cache_time": {"name": "缓存状态", "desc": "倒计时或已过期", "sample": "⏳ 缓存已过期"},
     "cwd": {"name": "当前目录", "desc": "工作目录（~ 缩写）", "sample": "~/dev/proj"},
     "git": {"name": "Git 分支", "desc": "当前分支名", "sample": " main"},
-    "session": {"name": "会话名", "desc": "人工命名或自动生成", "sample": "会话 fix-footer"},
+    "session": {"name": "会话名", "desc": "人工命名或自动生成", "sample": "fix-footer"},
     "time": {"name": "时间", "desc": "本机时间 HH:MM", "sample": "14:32"},
     "cost": {"name": "花费", "desc": "本会话费用", "sample": "¥0.42"},
 }
 
 TAG_ORDER = list(TAGS)
+
+SEPARATOR_NAMES = {"bar": "竖线", "space": "空格", "slash": "斜杠", "dot": "圆点"}
 
 PRESETS: dict[str, dict] = {
     "perf": {
@@ -143,6 +145,45 @@ def load_config() -> dict:
     return normalize(data)
 
 
+SLOTS: list[tuple[str, str]] = [
+    ("default", "通用默认"),
+    ("pi", "Pi"),
+    ("claude", "Claude Code"),
+    ("codex", "Codex"),
+]
+
+
+def slot_config(full: dict, slot: str | None) -> dict:
+    """取某一槽位（通用 / 某个工具）实际生效的那份配置，不含 agents 表。"""
+    full = normalize(full)
+    slot = (slot or "default").strip() or "default"
+    override = (full.get("agents") or {}).get(slot)
+    if slot == "default" or not override:
+        return {"enabled": full["enabled"], "separator": full["separator"],
+                "lines": [list(line) for line in full["lines"]]}
+    return {"enabled": full["enabled"], "separator": override["separator"],
+            "lines": [list(line) for line in override["lines"]]}
+
+
+def save_slot(full: dict, slot: str | None, config) -> dict:
+    """只改一个槽位，别的工具的自定义原样留着。
+
+    通用槽位改的是全局默认；某个工具槽位存进 agents.<id>，等于"这个工具
+    用自己的一套"，没设过的工具继续跟着通用默认走。
+    """
+    full = normalize(full)
+    clean = normalize(config)
+    slot = (slot or "default").strip() or "default"
+    if slot == "default":
+        full["enabled"] = clean["enabled"]
+        full["separator"] = clean["separator"]
+        full["lines"] = clean["lines"]
+        return save_config(full)
+    full.setdefault("agents", {})[slot] = {"separator": clean["separator"],
+                                           "lines": clean["lines"]}
+    return save_config(full)
+
+
 def save_config(config) -> dict:
     clean = normalize(config)
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -165,7 +206,7 @@ def sample_stats() -> dict:
         "cache_left_ms": -1,
         "cwd": "proj",
         "git": "main",
-        "session": "会话 fix-footer",
+        "session": "fix-footer",
         "time": "14:32",
         "cost": 0.42,
     }
@@ -245,12 +286,23 @@ def render_text(config: dict | None = None, stats: dict | None = None,
 
 
 def catalog(agent_id: str | None = None) -> dict:
-    """给设置页用的完整信息：tag 列表、分隔符、预设、当前配置、预览。"""
-    cfg = config_for(agent_id)
+    """给设置页用的完整信息：tag 列表、分隔符、预设、当前配置、预览。
+
+    `editing` 是当前正在编辑的那个槽位（通用 / pi / claude / codex）真正
+    生效的内容；`overrides` 告诉界面哪些工具已经单独设过。
+    """
+    full = load_config()
+    slot = (agent_id or "default").strip() or "default"
+    cfg = slot_config(full, slot)
     return {
+        "slots": [{"id": key, "name": name} for key, name in SLOTS],
+        "slot": slot,
+        "overrides": sorted((full.get("agents") or {}).keys()),
+        "editing": cfg,
         "tags": [{"id": tag, **info, "preview": render_tag(tag, sample_stats())}
                  for tag, info in TAGS.items()],
-        "separators": [{"id": key, "label": value, "bytes": value}
+        "separators": [{"id": key, "label": value, "name": SEPARATOR_NAMES.get(key, ""),
+                        "bytes": value}
                        for key, value in SEPARATORS.items()],
         "presets": [{"id": key, **value} for key, value in PRESETS.items()],
         "config": cfg,
