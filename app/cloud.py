@@ -31,6 +31,8 @@ DEFAULT_SETTINGS: dict = {
     "launch": {"terminal": "auto", "custom_terminal": "", "resume": False,
                 "cwd": "", "modes": {}},
     "i18n": {"auto": True, "agents": {}},
+    # 导出设置：单个会话文件上限（MB，1~1024）；apiKey 一律随包带走
+    "export": {"session_max_mb": 100},
 }
 
 

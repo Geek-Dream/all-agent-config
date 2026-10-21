@@ -901,6 +901,7 @@ class SettingsReq(BaseModel):
     ccswitch: dict | None = None
     launch: dict | None = None
     i18n: dict | None = None
+    export: dict | None = None
 
 
 @app.get("/api/settings")
@@ -929,6 +930,11 @@ def api_save_settings(req: SettingsReq) -> dict:
         patch["launch"] = req.launch
     if req.i18n is not None:
         patch["i18n"] = req.i18n
+    if req.export is not None:
+        cfg = dict(cloud.load_settings().get("export") or {})
+        cfg.update(req.export)
+        cfg["session_max_mb"] = bundle.clamp_session_mb(cfg.get("session_max_mb"))
+        patch["export"] = cfg
     cloud.save_settings(patch)
     return {"saved": True}
 
@@ -1180,6 +1186,7 @@ class ExportReq(BaseModel):
     conv_days: int | None = None      # 对话历史只打包最近 N 天（None = 全部）
     target_os: str | None = None      # 目标平台路径布局：None/macOS/Windows/linux
     password: str | None = None       # 可选：整包加密密码
+    session_max_mb: int | None = None    # 单个会话文件上限，None = 用设置里的
 
 
 class ImportApplyReq(BaseModel):
@@ -1200,9 +1207,15 @@ async def api_agent_detail(agent_id: str) -> dict:
 
 @app.post("/api/export/{agent_id}")
 async def api_export(agent_id: str, req: ExportReq) -> dict:
+    export_cfg = cloud.load_settings().get("export")
+    export_cfg = export_cfg if isinstance(export_cfg, dict) else {}
+    session_max_mb = req.session_max_mb
+    if session_max_mb is None:
+        session_max_mb = bundle.clamp_session_mb(export_cfg.get("session_max_mb"))
     try:
         out = await asyncio.to_thread(bundle.export_bundle, agent_id, req.categories,
-                                      req.conv_days, req.target_os, req.password)
+                                      req.conv_days, req.target_os, req.password,
+                                      session_max_mb)
     except ValueError as e:
         raise HTTPException(404, str(e))
     return {"file": out.name, "size": out.stat().st_size}

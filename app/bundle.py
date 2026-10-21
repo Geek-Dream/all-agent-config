@@ -39,6 +39,20 @@ IMPORTS_DIR = HOME / ".aac" / "imports"
 FORMAT_VERSION = 2
 IS_WINDOWS = os.name == "nt"
 
+# 会话导出上限（MB）：默认 100，设置里最大可放到 1024（1GB）。
+# 只限制“对话历史”——skills / 配置再大也照常导出，那是要用的东西。
+SESSION_MAX_MB = 100
+SESSION_MAX_MB_CEILING = 1024
+
+
+def clamp_session_mb(value) -> int:
+    """会话上限：非法/缺省走 100，超过 1024 按 1024 算。"""
+    try:
+        mb = int(value) if value is not None else SESSION_MAX_MB
+    except (TypeError, ValueError):
+        mb = SESSION_MAX_MB
+    return max(1, min(mb, SESSION_MAX_MB_CEILING))
+
 _OS_NAMES = {"darwin": "macOS", "win32": "Windows", "cygwin": "Windows"}
 
 
@@ -192,13 +206,15 @@ def validate_aac(path: Path) -> dict:
 
 
 def export_bundle(agent_id: str, selected: list[str], conv_days: int | None = None,
-                  target_os: str | None = None, password: str | None = None) -> Path:
+                  target_os: str | None = None, password: str | None = None,
+                  session_max_mb: int | None = None) -> Path:
     """把选中的分类打包成 .aac，返回文件路径。
 
     conv_days：只打包最近 N 天内修改过的会话文件（None = 全部）。
     target_os：可选，提前把包内相对路径写成目标系统的布局
                （macOS / Windows / linux，None = 跟随本机）。
     password：可选，提供则整包 AES-256-GCM 加密。
+    session_max_mb：单个会话文件上限（默认 100MB，最大 1024MB），只管对话历史。
     """
     agent = registry.get_agent(agent_id)
     if not agent:
@@ -225,8 +241,10 @@ def export_bundle(agent_id: str, selected: list[str], conv_days: int | None = No
         "path_platform": target_os or local_os,   # rel_home 使用的路径布局
         "platform_dirs": pdirs,             # 跨系统目录等价关系快照
         "conv_days": conv_days,             # 会话时间范围筛选（None = 全部）
+        "session_max_mb": clamp_session_mb(session_max_mb),
         "categories": {},
     }
+    session_cap = clamp_session_mb(session_max_mb) * 1024 * 1024
 
     ensure_private_dir(EXPORTS_DIR)
     stamp = time.strftime("%Y%m%d-%H%M%S")
@@ -270,10 +288,11 @@ def export_bundle(agent_id: str, selected: list[str], conv_days: int | None = No
                     continue
                 if cat == "conversations" and conv_cutoff and f.get("mtime", 0) < conv_cutoff:
                     continue   # 时间范围之外的会话不打包
-                if f["size"] > categories.MAX_FILE_SIZE:
-                    # 超大文件（如数百 MB 的会话日志）不进包，记录在清单里
+                if cat == "conversations" and f["size"] > session_cap:
+                    # 只有会话会被大小限制；上限可在设置里调到 1024MB
                     manifest.setdefault("skipped", []).append(
-                        {"path": str(src), "size": f["size"], "reason": "超过 100MB"})
+                        {"path": str(src), "size": f["size"],
+                         "reason": f"会话超过 {clamp_session_mb(session_max_mb)}MB 上限"})
                     continue
                 if f.get("json_keys"):
                     try:
@@ -552,16 +571,16 @@ def _backup(p: Path) -> None:
 
 
 def import_apply(path: Path, selected: list[str], log: list[str],
-                 password: str | None = None) -> None:
+                 password: str | None = None) -> dict:
     zip_path, tmp = _materialize(path, password)
     try:
-        _import_apply(zip_path, selected, log)
+        return _import_apply(zip_path, selected, log)
     finally:
         if tmp:
             tmp.unlink(missing_ok=True)
 
 
-def _import_apply(path: Path, selected: list[str], log: list[str]) -> None:
+def _import_apply(path: Path, selected: list[str], log: list[str]) -> dict:
     archive.inspect_zip(path, archive.AAC_LIMITS)
     with zipfile.ZipFile(path) as zf:
         manifest = _read_manifest(zf)
@@ -657,3 +676,34 @@ def _import_apply(path: Path, selected: list[str], log: list[str]) -> None:
         if src_home and src_home != str(HOME):
             log.append(f"已把配置内容中的路径 {src_home} 映射为 {HOME}\n")
         log.append(f"导入结束，共应用 {len(applied)} 个分类：{', '.join(applied)}\n")
+        _post_import(agent, manifest, applied, log)
+        return manifest
+
+
+def _post_import(agent: dict, manifest: dict, applied: list[str],
+                 log: list[str]) -> None:
+    """导入后的收尾：脚本体检 + 引用包自愈。任何异常都不影响导入结果。"""
+    from . import checks, packages
+
+    if not applied:
+        return
+    try:
+        issues = checks.audit_hooks(agent, manifest.get("source_os"))
+        if issues:
+            log.append(f"[体检] 发现 {len(issues)} 处换系统后可能跑不起来的脚本/hook：\n")
+            log.extend(checks.format_warnings(issues))
+            log.append("[体检] 以上无法自动修改，建议按提示手动处理\n")
+        else:
+            log.append("[体检] 脚本与 hook 未发现跨系统问题\n")
+        manifest["hook_warnings"] = issues
+    except Exception as e:  # noqa: BLE001
+        log.append(f"[体检] 跳过：{e}\n")
+
+    try:
+        if any(c in applied for c in ("system", "custom", "skills")):
+            result = packages.reconcile(agent, log)
+            manifest["packages"] = result
+            if result.get("missing"):
+                log.append(f"[引用包] 缺 {len(result['missing'])} 个，见上方手动安装提示\n")
+    except Exception as e:  # noqa: BLE001
+        log.append(f"[引用包] 跳过：{e}\n")

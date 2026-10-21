@@ -254,3 +254,90 @@ class JsonPathRemapTests(unittest.TestCase):
             out = bundle._remap_file_text("path: /Users/wl/.pi/a.md", ".md",
                                           "/Users/wl", [])
         self.assertEqual(out, r"path: C:\Users\wlwin\.pi\a.md")
+
+
+class ExportRulesTests(unittest.TestCase):
+    """导出规则：会话限大小、其它分类不限、密钥可选抹除。"""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="aac-export-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.home = self.root / "home"
+        self.home.mkdir()
+        self.settings = self.home / ".demo" / "settings.json"
+        self.settings.parent.mkdir(parents=True)
+        self.settings.write_text(json.dumps({
+            "model": "demo-1",
+            "env": {"ANTHROPIC_AUTH_TOKEN": "sk-secret-value"},
+        }), encoding="utf-8")
+        self.toml = self.home / ".demo" / "config.toml"
+        self.toml.write_text('[model]\napi_key = "sk-toml-secret"\nname = "keep-me"\n',
+                             encoding="utf-8")
+        self.skills = self.home / ".demo" / "skills"
+        self.skills.mkdir()
+        self.big_skill = self.skills / "huge-skill.md"
+        self.big_skill.write_text("x" * (2 * 1024 * 1024), encoding="utf-8")
+        self.sessions = self.home / ".demo" / "sessions"
+        self.sessions.mkdir()
+        (self.sessions / "small.jsonl").write_text('{"a":1}\n', encoding="utf-8")
+        self.big_session = self.sessions / "big.jsonl"
+        self.big_session.write_text("y" * (2 * 1024 * 1024), encoding="utf-8")
+        self.agent = {
+            "id": "demo", "name": "Demo", "command": "demo",
+            "sources": {"npm": "demo-pkg"},
+            "config_dirs": [str(self.home / ".demo")],
+            "categories": {
+                "system": [str(self.settings), str(self.toml)],
+                "skills": [str(self.skills)],
+            },
+            "session_dirs": [str(self.sessions)],
+        }
+        for target, name, value in (
+            (bundle, "HOME", self.home),
+            (bundle, "EXPORTS_DIR", self.home / "exports"),
+        ):
+            mocked = patch.object(target, name, value)
+            mocked.start()
+            self.addCleanup(mocked.stop)
+        mocked = patch.object(bundle.registry, "get_agent", return_value=self.agent)
+        mocked.start()
+        self.addCleanup(mocked.stop)
+        mocked = patch.object(bundle.categories, "agent_detail", side_effect=lambda a: {
+            "agent_version": None,
+            "categories": bundle.categories.scan_categories(a),
+            "patches": {},
+        })
+        mocked.start()
+        self.addCleanup(mocked.stop)
+
+    def manifest(self, path):
+        with zipfile.ZipFile(path) as zf:
+            return json.loads(zf.read("manifest.json")), zf.namelist()
+
+    def test_api_keys_travel_with_the_package(self):
+        out = bundle.export_bundle("demo", ["system"])
+        with zipfile.ZipFile(out) as zf:
+            blobs = b"".join(zf.read(n) for n in zf.namelist() if n.startswith("system/"))
+        # apiKey 往往只能看一次，导出必须带上，否则换机就再也填不回去
+        self.assertIn("sk-toml-secret", blobs.decode("utf-8"))
+
+    def test_skills_are_exported_regardless_of_size_but_sessions_capped(self):
+        out = bundle.export_bundle("demo", ["skills", "conversations"], session_max_mb=1)
+        manifest, names = self.manifest(out)
+        self.assertEqual(manifest["session_max_mb"], 1)
+        arcs = [e["arc"] for e in manifest["categories"]["skills"]["entries"]]
+        self.assertEqual(len(arcs), 1)          # 2MB 的 skill 照样进包
+        self.assertIn(arcs[0], names)
+        conv = [e["arc"] for e in manifest["categories"]["conversations"]["entries"]]
+        self.assertEqual(len(conv), 1)          # 只有小会话
+        skipped = manifest["skipped"]
+        self.assertEqual(len(skipped), 1)
+        self.assertIn("1MB", skipped[0]["reason"])
+
+    def test_session_limit_is_clamped_to_one_gigabyte(self):
+        self.assertEqual(bundle.clamp_session_mb(None), 100)
+        self.assertEqual(bundle.clamp_session_mb(0), 1)
+        self.assertEqual(bundle.clamp_session_mb(4096), 1024)
+        self.assertEqual(bundle.clamp_session_mb("250"), 250)
+        self.assertEqual(bundle.clamp_session_mb("abc"), 100)
