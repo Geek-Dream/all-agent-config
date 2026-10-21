@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 
+from . import mirrors
 from .installer import IS_WINDOWS
 
 MANAGERS = ["node", "npm", "pnpm", "git", "brew", "scoop", "winget", "pipx"]
@@ -61,6 +62,7 @@ def check_env() -> dict:
         "auto_install": False,
         "manual_hint": None,
     }
+    out["_mirror"] = mirrors.info()
     return out
 
 

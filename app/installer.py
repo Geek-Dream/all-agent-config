@@ -11,6 +11,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from . import mirrors
 from .paths import relative_target
 
 USER_PREFIX = Path.home() / ".aac" / "npm"
@@ -252,17 +253,26 @@ ELEVATE_MARKER = "__AAC_ELEVATE__"
 
 
 async def run(argv: list[str], log: list[str], sudo_password: str | None = None) -> int:
-    """执行命令，输出实时追加到 log；sudo 时把密码喂给 stdin。"""
+    """执行命令，输出实时追加到 log；sudo 时把密码喂给 stdin。
+
+    安装源默认走国内镜像：npm/pip 追加命令行参数（sudo 下也不会丢），
+    brew 通过环境变量切换 API / bottle / git 源。
+    """
     if sudo_password == ELEVATE_MARKER and IS_WINDOWS:
         return await _run_elevated_windows(argv, log)
+    argv = mirrors.with_flags(argv)
+    extra_env = mirrors.env_for(argv)
     use_sudo = bool(sudo_password)
     full = ["sudo", "-S", "-k", "-p", ""] + argv if use_sudo else argv
+    if extra_env:
+        log.append(f"# 安装源：{mirrors.current()['label']}\n")
     log.append(f"$ {'sudo ' if use_sudo else ''}{' '.join(argv)}\n")
     proc = await asyncio.create_subprocess_exec(
         *full,
         stdin=asyncio.subprocess.PIPE if use_sudo else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
+        env={**os.environ, **extra_env},
     )
     if use_sudo and proc.stdin:
         proc.stdin.write((sudo_password + "\n").encode())
