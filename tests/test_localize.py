@@ -200,3 +200,33 @@ def test_windows_elevation_uses_powershell_copy(sandbox, monkeypatch):
     assert all("Copy-Item -LiteralPath" in step for step in captured["ps"])
     assert not any("chmod" in part or "cp" == part for part in sum(captured["commands"], []))
     assert "&&" not in " ".join(captured["ps"])
+
+
+class VocabularyTests:
+    """词表本身的硬约束：二进制补丁必须等字节长度放得下。"""
+
+    def test_all_maps_are_valid_json_objects(self):
+        for path in sorted(localize.MAPS_DIR.glob("*.json")):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            assert isinstance(data, dict), path.name
+            assert data, f"{path.name} 是空词表"
+            for en, zh in data.items():
+                assert isinstance(en, str) and en.strip(), path.name
+                assert isinstance(zh, str) and zh.strip(), path.name
+
+    def test_binary_vocabularies_fit_equal_length_patch(self):
+        """kind: binary 的词表，中文 UTF-8 字节数不能超过英文，否则打不进去。"""
+        from app import registry
+
+        binary_maps = set()
+        for agent in registry.load_agents():
+            spec = agent.get("i18n") or {}
+            if spec.get("kind") == "binary" and spec.get("map"):
+                binary_maps.add(spec["map"])
+        assert binary_maps, "没有登记任何 binary 词表"
+        for name in sorted(binary_maps):
+            data = json.loads((localize.MAPS_DIR / name).read_text(encoding="utf-8"))
+            for en, zh in data.items():
+                assert len(zh.encode()) <= len(en.encode()), \
+                    f"{name}: 译文超长 {en!r} → {zh!r}"
+                assert '"' not in zh and "\n" not in zh, f"{name}: {en!r}"
