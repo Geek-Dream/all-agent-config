@@ -63,14 +63,7 @@ agents:
         review: {name: 审核模式, args: ["--permission-mode", "plan"]}
         sandbox: {name: 沙箱模式, args: ["--settings", '{"sandbox":{"enabled":true}}'], note: "依赖 Claude Code 内置沙箱支持"}
         danger: {name: 危险模式, args: ["--dangerously-skip-permissions"], confirm: true, warning: "跳过全部权限确认，可任意读写文件并执行命令"}
-    i18n:
-      kind: binary
-      map: claude.json
-      auto: true
-      locate:
-        package: "@anthropic-ai/claude-code"
-        glob: "bin/claude*"
-    notes: 配置含 settings.json / CLAUDE.md / skills / plugins / hooks / statusline（状态栏自定义）；汉化为二进制等字节补丁（升级后自动重打）
+    notes: 配置含 settings.json / CLAUDE.md / skills / plugins / hooks / statusline（状态栏自定义）；界面汉化对 Claude Code 不做——它是 Bun 打包，字符串按 Latin-1 存在常量表里，塞中文必乱码（实测 `ç®¡ç� MCP æå¡`），已还原英文原版
 
   - id: codex
     name: Codex CLI

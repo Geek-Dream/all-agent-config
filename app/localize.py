@@ -276,8 +276,29 @@ def revert_text(agent: dict) -> dict:
 
 # ---------------------------------------------------------------- binary 型应用
 
+def load_risky(agent: dict) -> dict:
+    """「改了就会把程序搞坏」的词：放进 <map>.risky.json，补丁时跳过。
+
+    二进制里同一段英文可能既是界面文案、又是 Bun/WebKit 内建脚本里的标识符。
+    后者一改，整个内建模块语法错乱（实测 claude 的 Reject 会让 --version 直接报
+    Invalid character）。所以这类词不猜，直接关进禁改名单。
+    """
+    spec = _spec(agent) or {}
+    name = spec.get("map")
+    if not name:
+        return {}
+    path = MAPS_DIR / (name[:-5] + ".risky.json" if name.endswith(".json") else name + ".risky.json")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 没有名单 / 名单坏了都当没有
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def build_patched_binary(agent: dict) -> dict:
     mapping = load_map(agent)
+    risky = load_risky(agent)
+    mapping = {k: v for k, v in mapping.items() if k not in risky}
     binary = locate_binary(agent)
     if binary is None:
         return {"ok": False, "message": "未找到二进制"}
@@ -298,7 +319,7 @@ def build_patched_binary(agent: dict) -> dict:
     out.write_bytes(buf)
     out.chmod(0o755)
     return {"ok": replaced > 0, "replaced": replaced, "missing": missing,
-            "too_long": too_long, "patched": out, "binary": binary}
+            "too_long": too_long, "risky": list(risky), "patched": out, "binary": binary}
 
 
 def _ps_quote(value) -> str:
@@ -313,6 +334,9 @@ def _elevated(commands: list[list[str]] | None = None,
     那边没有 cp / chmod，PowerShell 5 也不支持 `&&`，硬套 POSIX 命令必然失败。
     """
     commands = commands or []
+    if os.environ.get("AAC_NO_ELEVATION", "").lower() in ("1", "true", "yes"):
+        # 测试和无人值守场景：绝不弹授权框（会一直挂在那里等点击）
+        return 1, "已禁用提权（AAC_NO_ELEVATION）"
     if sys.platform == "darwin":
         shell_cmd = " && ".join(shlex.join([str(a) for a in c]) for c in commands)
         script = (f'do shell script {json.dumps(shell_cmd)} '
@@ -354,6 +378,21 @@ def install_binary(agent: dict, require_elevation: bool = True) -> dict:
     binary: Path = built["binary"]
     patched: Path = built["patched"]
     backup = binary_backup(binary)
+    risky_note = f"（跳过 {len(built.get('risky') or [])} 个禁改词）" if built.get("risky") else ""
+
+    # 上机前先在临时目录里跑一遍：宁可汉化失败，不可把系统目录里的程序弄坏。
+    # 原版自己都跑不起来（测试用的假文件、异常安装）就没法自检，只能跳过。
+    can_check, _orig = binary_health(binary)
+    check_note = "" if can_check else "（原程序跑不起来，跳过自检）"
+    if can_check:
+        if sys.platform == "darwin":
+            _codesign(patched)
+        healthy, detail = binary_health(patched)
+        if not healthy:
+            patched.unlink(missing_ok=True)
+            return {"ok": False, "needs_elevation": False,
+                    "message": f"词表有问题，补丁没装下去：{detail}。请把出错词报给开发者。",
+                    "risky": built.get("risky") or []}
 
     if os.access(binary, os.W_OK) and os.access(binary.parent, os.W_OK):
         if not backup.exists():
@@ -362,8 +401,19 @@ def install_binary(agent: dict, require_elevation: bool = True) -> dict:
         shutil.copy2(patched, tmp)
         os.replace(tmp, binary)
         sign = _codesign(binary) if sys.platform == "darwin" else (0, "")
+        ok, detail = (True, "跳过") if not can_check else binary_health(binary)
+        if not ok:
+            if backup.exists():
+                shutil.copy2(backup, binary)
+                if sys.platform == "darwin":
+                    _codesign(binary)
+            return {"ok": False, "needs_elevation": False, "rolled_back": True,
+                    "message": f"补丁后自检失败（{detail}），已自动还原英文"}
         return {"ok": True, "replaced": built["replaced"], "missing": built["missing"],
-                "message": f"汉化 {built['replaced']} 处" + ("" if sign[0] == 0 else "（重签失败）"),
+                "risky": built.get("risky") or [],
+                "message": f"汉化 {built['replaced']} 处{risky_note}{check_note}"
+                           + ("" if not can_check else f"；自检通过 {detail}")
+                           + ("" if sign[0] == 0 else "（重签失败）"),
                 "needs_elevation": False}
 
     if not require_elevation:
@@ -388,9 +438,18 @@ def install_binary(agent: dict, require_elevation: bool = True) -> dict:
     code, out = _elevated(steps, ps_steps)
     if code != 0:
         return {"ok": False, "needs_elevation": True, "message": f"授权失败：{out.strip()[:200]}"}
-    verify = _verify_version(binary)
+    ok, detail = (True, "跳过") if not can_check else binary_health(binary)
+    if not ok:
+        try:
+            revert_binary(agent, require_elevation=True)
+        except Exception:  # noqa: BLE001 还原都失败也要把话说清楚
+            pass
+        return {"ok": False, "needs_elevation": True, "rolled_back": True,
+                "message": f"补丁后自检失败（{detail}），已自动还原英文"}
     return {"ok": True, "replaced": built["replaced"], "missing": built["missing"],
-            "message": f"汉化 {built['replaced']} 处" + (f"；{verify}" if verify else ""),
+            "risky": built.get("risky") or [],
+            "message": f"汉化 {built['replaced']} 处{risky_note}{check_note}"
+                       + ("" if not can_check else f"；自检通过 {detail}"),
             "needs_elevation": True}
 
 
@@ -437,6 +496,33 @@ def _verify_version(binary: Path) -> str:
         return line[0] if line else ""
     except Exception:  # noqa: BLE001
         return ""
+
+
+_BAD_MARKERS = ("Unexpected error", "Invalid character", "SyntaxError", "Syntax error",
+                "panic:", "segmentation fault", "Illegal instruction", "Trace/breakpoint")
+
+
+def binary_health(binary: Path) -> tuple[bool, str]:
+    """打完补丁必须跑一遍：能启动、退出码 0、不报内建语法错。
+
+    只看版本号第一行是不够的 —— 实测打坏的 claude 先打印 ``2.1.304``，
+    紧跟着才报 ``Invalid character``。
+    """
+    try:
+        proc = subprocess.run([str(binary), "--version"], capture_output=True,
+                              text=True, timeout=120)
+    except Exception as exc:  # noqa: BLE001
+        return False, f"跑不起来：{exc}"
+    output = ((proc.stdout or "") + (proc.stderr or "")).strip()
+    head = output.splitlines()[0] if output else ""
+    for marker in _BAD_MARKERS:
+        if marker in output:
+            return False, f"自检报错：{marker}"
+    if proc.returncode != 0:
+        return False, f"自检退出码 {proc.returncode}：{head[:80]}"
+    if not head:
+        return False, "自检没输出"
+    return True, head
 
 
 # ---------------------------------------------------------------- 统一入口

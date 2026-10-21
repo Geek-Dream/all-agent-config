@@ -1,0 +1,3 @@
+{
+  "Reject": "拒绝 —— 这个词在 Bun/WebKit 内建脚本里是标识符，改了 claude 直接报 Invalid character 起不来"
+}

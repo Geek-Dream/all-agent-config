@@ -230,3 +230,64 @@ class VocabularyTests:
                 assert len(zh.encode()) <= len(en.encode()), \
                     f"{name}: 译文超长 {en!r} → {zh!r}"
                 assert '"' not in zh and "\n" not in zh, f"{name}: {en!r}"
+
+def _codex_binary(sandbox, body: str):
+    binary = (sandbox["pkg"] / "node_modules" / "@openai" / "codex-darwin-arm64"
+              / "vendor" / "aarch64-apple-darwin" / "bin" / "codex")
+    binary.parent.mkdir(parents=True)
+    binary.write_text(body, encoding="utf-8")
+    binary.chmod(0o755)
+    return binary
+
+
+def test_risky_words_are_never_patched(sandbox):
+    """禁改名单里的词（如 Reject 是内建脚本标识符）必须原样留着。"""
+    _codex_binary(sandbox, "#!/bin/sh\necho tool 1.0 Reject Unknown error\n")
+    _write_map(sandbox, {"Reject": "拒绝", "Unknown error": "未知错误"}, name="claude.json")
+    (sandbox["root"] / "maps" / "claude.risky.json").write_text(
+        json.dumps({"Reject": "内建脚本标识符，改了程序起不来"}, ensure_ascii=False),
+        encoding="utf-8")
+    agent = _binary_agent(str(sandbox["root"] / "maps" / "claude.json"))
+    built = localize.build_patched_binary(agent)
+    assert built["ok"] is True, built
+    assert built["risky"] == ["Reject"]
+    patched = built["patched"].read_bytes()
+    assert b"Reject" in patched, "禁改词被误伤"
+    assert "未知错误".encode() in patched
+
+
+def test_broken_patch_never_reaches_the_real_binary(sandbox, monkeypatch):
+    """临时副本自检没过就直接放弃：真程序一个字节都不动。"""
+    binary = _codex_binary(sandbox, "#!/bin/sh\necho tool 1.0 Unknown error\n")
+    before = binary.read_bytes()
+    agent = _binary_agent(_write_map(sandbox, {"Unknown error": "未知错误"}))
+
+    calls = {"n": 0}
+
+    def fake_health(path):
+        calls["n"] += 1
+        return (True, "tool 1.0") if calls["n"] == 1 else (False, "自检报错：Invalid character")
+
+    monkeypatch.setattr(localize, "binary_health", fake_health)
+    result = localize.install_binary(agent)
+    assert result["ok"] is False
+    assert "词表有问题" in result["message"]
+    assert binary.read_bytes() == before
+
+
+def test_unhealthy_install_is_rolled_back(sandbox, monkeypatch):
+    """装到系统目录后自检没过，必须把英文原版放回去。"""
+    binary = _codex_binary(sandbox, "#!/bin/sh\necho tool 1.0 Unknown error\n")
+    before = binary.read_bytes()
+    agent = _binary_agent(_write_map(sandbox, {"Unknown error": "未知错误"}))
+
+    calls = {"n": 0}
+
+    def fake_health(path):
+        calls["n"] += 1
+        return (True, "tool 1.0") if calls["n"] <= 2 else (False, "自检退出码 1")
+
+    monkeypatch.setattr(localize, "binary_health", fake_health)
+    result = localize.install_binary(agent)
+    assert result["ok"] is False and result["rolled_back"] is True
+    assert binary.read_bytes() == before, "自检失败必须还原成英文原版"
