@@ -174,9 +174,11 @@ def slot_config(full: dict, slot: str | None) -> dict:
     override = (full.get("agents") or {}).get(slot)
     if slot == "default" or not override:
         return {"enabled": full["enabled"], "separator": full["separator"],
-                "lines": [list(line) for line in full["lines"]]}
+                "lines": [list(line) for line in full["lines"]],
+                "cny_per_usd": full["cny_per_usd"]}
     return {"enabled": full["enabled"], "separator": override["separator"],
-            "lines": [list(line) for line in override["lines"]]}
+            "lines": [list(line) for line in override["lines"]],
+            "cny_per_usd": full["cny_per_usd"]}
 
 
 def save_slot(full: dict, slot: str | None, config) -> dict:
@@ -188,6 +190,7 @@ def save_slot(full: dict, slot: str | None, config) -> dict:
     full = normalize(full)
     clean = normalize(config)
     slot = (slot or "default").strip() or "default"
+    full["cny_per_usd"] = clean["cny_per_usd"]      # 汇率是全局设置，不分槽位
     if slot == "default":
         full["enabled"] = clean["enabled"]
         full["separator"] = clean["separator"]

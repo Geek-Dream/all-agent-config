@@ -592,6 +592,8 @@
 .ft-sep:hover{background:var(--panel)}
 .ft-sep.on{background:var(--accent);color:#1f2328;font-weight:600}
 .ft-sep i{font-style:normal;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700}
+.ft-rate{font-size:11.5px;color:var(--dim);white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.ft-rate input{width:58px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--fg);padding:3px 6px;font-size:11.5px}
 .ft-lines{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
 .ft-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;border:1px solid var(--border);border-radius:9px;padding:7px 9px;background:var(--bg);min-height:38px}
 .ft-line-no{color:var(--dim);font-size:10.5px;min-width:34px}
@@ -889,6 +891,9 @@
             <div class="ft-row">
               <span class="ft-label ft-label-inline">分隔符</span>
               <div class="ft-seps" id="footer_seps"></div>
+              <label class="ft-rate" title="claude 给的是美元，这里填换算汇率；状态栏显示 ≈¥ 表示估算值">
+                1$ ≈ <input id="footer_rate" type="number" step="0.1" min="1" max="20" oninput="footerSetRate(this.value)"> 元
+              </label>
             </div>
             <div class="ft-lines" id="footer_canvas"></div>
             <div class="ft-label">预览<span class="ft-dim">（示例数据，真实数字运行时才有）</span></div>
@@ -2193,6 +2198,10 @@ function footerRender(){
   document.getElementById('footer_presets').innerHTML = FOOTER_CATALOG.presets.map(p=>
     `<button class="ft-preset" onclick="footerPreset('${p.id}')" title="${esc(p.desc)}">${esc(p.name)}</button>`).join('');
 
+  const rateEl = document.getElementById('footer_rate');
+  if(rateEl && document.activeElement !== rateEl)
+    rateEl.value = (FOOTER_EDIT.cny_per_usd ?? 7.2).toFixed(1);
+
   document.getElementById('footer_seps').innerHTML = FOOTER_CATALOG.separators.map(sp=>
     `<button class="ft-sep${FOOTER_EDIT.separator===sp.id?' on':''}" onclick="footerSetSep('${sp.id}')"
       title="用「${esc(sp.name||sp.label)}」分隔">${sp.id==='space'?'<i>␣</i>空格':`<i>${esc(sp.label)}</i>${esc(sp.name||'')}`}</button>`).join('');
@@ -2259,6 +2268,10 @@ function footerAddLine(){
   footerRender();
 }
 function footerSetSep(k){ FOOTER_EDIT.separator = k; footerRender(); }
+function footerSetRate(v){
+  const n = Number(v);
+  if(Number.isFinite(n) && n >= 1 && n <= 20){ FOOTER_EDIT.cny_per_usd = n; footerPreview(); }
+}
 function footerPreset(id){
   const p = FOOTER_CATALOG?.presets.find(x=>x.id===id);
   if(!p) return;
