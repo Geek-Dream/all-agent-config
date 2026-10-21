@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import os
 import time
@@ -80,6 +81,18 @@ PRESETS: dict[str, dict] = {
     },
 }
 
+RATE_DEFAULT = 7.2          # 美元 → 人民币估算汇率，可在 footer.json 里改 cny_per_usd
+CACHE_TTL_MS = 5 * 60 * 1000
+
+
+def _rate(value) -> float:
+    try:
+        rate = float(value)
+    except (TypeError, ValueError):
+        return RATE_DEFAULT
+    return rate if 1.0 <= rate <= 20.0 else RATE_DEFAULT
+
+
 DEFAULT_CONFIG = {"version": 1, "enabled": True,
                   "separator": "bar", "lines": list(PRESETS["perf"]["config"]["lines"]),
                   "agents": {}}
@@ -124,6 +137,7 @@ def normalize(config) -> dict:
         "enabled": bool(config.get("enabled", True)),
         "separator": sep,
         "lines": _clean_lines(config.get("lines")),
+        "cny_per_usd": _rate(config.get("cny_per_usd")),
         "agents": agents,
     }
 
@@ -239,7 +253,7 @@ def render_tag(tag: str, stats: dict) -> str:
     if tag == "cache_time":
         left = stats.get("cache_left_ms")
         if left is None:
-            return "⏳ 无缓存"
+            return ""             # 没缓存数据就别占地方，不编“无缓存”
         if left <= 0:
             return "⏳ 缓存已过期"
         seconds = int(left // 1000)
@@ -259,8 +273,9 @@ def render_tag(tag: str, stats: dict) -> str:
         value = stats.get("cost")
         if value is None:
             return ""
-        # provider 没配单价时算出来是 0，这时候不能说"花了一分钱"——如实写未计价
-        return f"¥{float(value):.2f}" if float(value) > 0 else "¥— 未计价"
+        # provider 没配单价时算出来是 0，这时候不能说"花了一分钱"——如实写未计价。
+        # 有值时加 ≈：这是按汇率估算的，不是账单金额。
+        return f"≈¥{float(value):.2f}" if float(value) > 0 else "¥— 未计价"
     return ""
 
 
@@ -327,7 +342,8 @@ def stats_from_claude_payload(payload: dict) -> dict:
     cwd = workspace.get("current_dir") or payload.get("cwd") or ""
     stats = {
         "model": model.get("display_name") or model.get("id") or "",
-        "thinking": "",           # claude 状态栏拿不到思考等级
+        "thinking": str((payload.get("effort") or {}).get("level") or "")
+        if isinstance(payload.get("effort"), dict) else "",
         "cwd": short_path(str(cwd)),
         "git": _git_branch(str(cwd)),
         "session": str(payload.get("session_id") or "")[:8],
@@ -343,7 +359,7 @@ def stats_from_claude_payload(payload: dict) -> dict:
     try:
         total = cost.get("total_cost_usd")
         if isinstance(total, (int, float)):
-            stats["cost"] = float(total) * 7.25
+            stats["cost"] = float(total) * _rate(config_for("claude").get("cny_per_usd"))
     except Exception:  # noqa: BLE001
         pass
     mem = mem_percent()
@@ -430,10 +446,11 @@ def _git_branch(cwd: str) -> str:
 
 
 def _last_usage_from_transcript(path) -> dict | None:
-    """从 claude 的 transcript（jsonl）里捞最近一条助手消息的用量。
+    """从 claude 的 transcript（jsonl）里捞最近一条有真实用量的助手消息。
 
-    这是唯一能拿到「已用 tokens / 缓存命中」的办法：statusLine 的 JSON 里没有。
-    文件不存在或格式变了就返回 None，状态栏显示占位符而不是假数字。
+    这是拿到「已用 tokens / 缓存命中」的唯一途径：statusLine 的 JSON 里没有。
+    全部为 0（走第三方代理时很常见）就当没有数据返回 None，
+    由渲染层整段省略——不显示 "?"，也不显示 0。
     """
     if not path:
         return None
@@ -457,14 +474,30 @@ def _last_usage_from_transcript(path) -> dict | None:
         try:
             input_tokens = int(usage.get("input_tokens") or 0)
             cache_read = int(usage.get("cache_read_input_tokens") or 0)
-            cache_write = int(usage.get("cache_write_input_tokens") or 0)
+            cache_write = int(usage.get("cache_creation_input_tokens")
+                              or usage.get("cache_write_input_tokens") or 0)
             output_tokens = int(usage.get("output_tokens") or 0)
         except (TypeError, ValueError):
             continue
         total = input_tokens + cache_read + cache_write + output_tokens
-        hit = (cache_read / (input_tokens + cache_read) * 100) if (input_tokens + cache_read) else 0.0
-        return {"tokens": total, "cache_hit": hit,
-                "cache_left_ms": 5 * 60 * 1000 if (cache_read or cache_write) else -1}
+        if total <= 0:
+            continue                      # 代理返回空用量：不是 0 花费，是没有数据
+        window = input_tokens + cache_read
+        left = None
+        if cache_read or cache_write:
+            stamp = entry.get("timestamp")
+            if isinstance(stamp, str):
+                try:
+                    when = datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                    age = (datetime.datetime.now(datetime.timezone.utc) - when).total_seconds()
+                    left = int(CACHE_TTL_MS - age * 1000)
+                except (ValueError, TypeError):
+                    left = None
+            else:
+                left = None
+        return {"tokens": total,
+                "cache_hit": (cache_read / window * 100) if window else None,
+                "cache_left_ms": left}
     return None
 
 

@@ -40,6 +40,7 @@ interface FooterConfig {
   enabled: boolean;
   separator: string;
   lines: string[][];
+  cnyPerUsd: number;
 }
 
 function cleanLines(raw: unknown): string[][] {
@@ -61,7 +62,9 @@ function normalize(raw: unknown, agentId = "pi"): FooterConfig {
     | undefined;
   const src = { ...cfg, ...(own ?? {}) };
   const sep = typeof src.separator === "string" && src.separator in SEPARATORS ? src.separator : "bar";
-  return { enabled: src.enabled !== false, separator: sep, lines: cleanLines(src.lines) };
+  const rawRate = Number(src.cny_per_usd);
+  const cnyPerUsd = Number.isFinite(rawRate) && rawRate >= 1 && rawRate <= 20 ? rawRate : RATE_DEFAULT;
+  return { enabled: src.enabled !== false, separator: sep, lines: cleanLines(src.lines), cnyPerUsd };
 }
 
 let cachedConfig: FooterConfig | null = null;
@@ -87,7 +90,7 @@ function loadConfig(): FooterConfig {
 
 // ---------------------------------------------------------------- 采样
 
-const CNY_PER_USD = 7.25;
+const RATE_DEFAULT = 7.2;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CIRCLE_ANIM = ["◉", "⊙", "◌"];
 const MEM_SAMPLE_MS = 2000;
@@ -188,19 +191,16 @@ function gitBranch(ctx: ExtensionContext): string {
 
 interface SessionStats {
   cost: number;
-  tps: number;
-  hitRate: number;
+  tps: number | null;      // null = 拿不到可信耗时，别显示 0 或 "?"
+  hitRate: number | null;  // null = 这个会话还没有缓存样本
   lastCacheTs: number;
   tokens: number | null;
 }
 
 function collectStats(ctx: ExtensionContext): SessionStats {
   let cost = 0;
-  let lastOut = 0;
-  let lastOutDur = 0;
-  let lastOutTs = 0;
-  let prevOutTs = 0;
   let lastCacheTs = 0;
+  const samples: { output: number; durMs: number }[] = [];
   const recent: { input: number; cacheRead: number }[] = [];
   for (const e of ctx.sessionManager.getBranch()) {
     if (e.type === "message" && e.message.role === "assistant") {
@@ -209,20 +209,20 @@ function collectStats(ctx: ExtensionContext): SessionStats {
       cost += u.cost.total;
       recent.push({ input: u.input, cacheRead: u.cacheRead });
       const ts = (m as any).timestamp ?? 0;
-      if (u.output) {
-        prevOutTs = lastOutTs;
-        lastOutTs = ts;
-        lastOut = u.output;
-        lastOutDur = m.durationMs ?? 0;
+      // 只收「有输出 + 有耗时」的样本：缺一个都算不出速度，宁可不算
+      if (u.output > 0 && (m.durationMs ?? 0) > 0) {
+        samples.push({ output: u.output, durMs: m.durationMs as number });
       }
       if ((u.cacheRead > 0 || u.cacheWrite > 0) && ts > lastCacheTs) lastCacheTs = ts;
     }
   }
-  let tps = 0;
-  if (lastOut > 0) {
-    if (lastOutDur > 0) tps = lastOut / (lastOutDur / 1000);
-    else if (lastOutTs > prevOutTs && prevOutTs > 0)
-      tps = lastOut / Math.max(0.1, (lastOutTs - prevOutTs) / 1000);
+  // 最近 5 条平均，单条容易被首字延迟拉低
+  const tail = samples.slice(-5);
+  let tps: number | null = null;
+  if (tail.length) {
+    const out = tail.reduce((a, b) => a + b.output, 0);
+    const ms = tail.reduce((a, b) => a + b.durMs, 0);
+    if (out > 0 && ms >= 300) tps = out / (ms / 1000);
   }
   const win = recent.slice(-10);
   let winInput = 0;
@@ -231,9 +231,10 @@ function collectStats(ctx: ExtensionContext): SessionStats {
     winInput += r.input;
     winCache += r.cacheRead;
   }
-  const hitRate = winInput + winCache > 0 ? (winCache / (winInput + winCache)) * 100 : 0;
+  const hitRate = winInput + winCache > 0 ? (winCache / (winInput + winCache)) * 100 : null;
   const usage = ctx.getContextUsage?.();
-  return { cost, tps, hitRate, lastCacheTs, tokens: usage?.tokens ?? null };
+  const tokens = typeof usage?.tokens === "number" && usage.tokens > 0 ? usage.tokens : null;
+  return { cost, tps, hitRate, lastCacheTs, tokens };
 }
 
 // ---------------------------------------------------------------- 渲染
@@ -247,6 +248,7 @@ function renderTag(
   theme: Theme,
   branch: string,
   frame: number,
+  cfgRate: number,
 ): string | null {
   switch (tag) {
     case "model":
@@ -265,24 +267,25 @@ function renderTag(
       return theme.fg("dim", "CPU ") + theme.fg(loadColor(cpu), `${cpu}%`);
     }
     case "cache": {
-      const color: ZoneColor = s.hitRate >= 80 ? "success" : s.hitRate >= 50 ? "warning" : "dim";
+      if (s.hitRate == null) return null;   // 没有缓存样本就不显示 0%
+      const rate = s.hitRate;
+      const color: ZoneColor = rate >= 80 ? "success" : rate >= 50 ? "warning" : "dim";
       return (
         theme.fg(color, CIRCLE_ANIM[frame % CIRCLE_ANIM.length]) +
         theme.fg("dim", " ") +
-        theme.fg(color, `${s.hitRate.toFixed(0)}%`)
+        theme.fg(color, `${rate.toFixed(0)}%`)
       );
     }
     case "speed":
-      return s.tps > 0
+      return s.tps != null && s.tps > 0
         ? theme.fg("text", s.tps.toFixed(1)) + theme.fg("dim", " 字/秒")
-        : theme.fg("dim", "— 字/秒");
+        : null;                            // 算不出来就整段不出现
     case "tokens":
-      return (
-        theme.fg("dim", "已用 tokens：") +
-        theme.fg("muted", s.tokens == null ? "?" : s.tokens.toLocaleString("en-US"))
-      );
+      return s.tokens == null
+        ? null
+        : theme.fg("dim", "已用 tokens：") + theme.fg("muted", s.tokens.toLocaleString("en-US"));
     case "cache_time": {
-      if (s.lastCacheTs <= 0) return theme.fg("dim", "⏳ 无缓存");
+      if (s.lastCacheTs <= 0) return null;
       const remain = CACHE_TTL_MS - (Date.now() - s.lastCacheTs);
       return remain > 0
         ? theme.fg(remain < 60_000 ? "warning" : "text", `⏳ 缓存 ${fmtCountdown(remain)}`)
@@ -301,8 +304,9 @@ function renderTag(
     case "time":
       return theme.fg("dim", new Date().toLocaleTimeString("zh-CN", { hour12: false }).slice(0, 5));
     case "cost":
+      // ≈ 表示按汇率估算，不是账单金额；没单价时如实写未计价
       return s.cost > 0
-        ? theme.bold(theme.fg("accent", `¥${(s.cost * CNY_PER_USD).toFixed(2)}`))
+        ? theme.bold(theme.fg("accent", `≈¥${(s.cost * cfgRate).toFixed(2)}`))
         : theme.fg("dim", "¥— 未计价");
     default:
       return null;
@@ -345,7 +349,7 @@ export default function aacFooter(pi: ExtensionAPI) {
           const out: string[] = [];
           for (const line of cfg.lines) {
             const parts = line
-              .map((tag) => renderTag(tag, s, ctx, theme, branch, frame))
+              .map((tag) => renderTag(tag, s, ctx, theme, branch, frame, cfg.cnyPerUsd))
               .filter((x): x is string => !!x);
             if (parts.length) out.push(truncateToWidth(` ${parts.join(sep)}`, width));
           }

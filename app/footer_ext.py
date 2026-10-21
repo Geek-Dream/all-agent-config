@@ -116,7 +116,7 @@ def claude_install(project_root: Path | None = None) -> dict:
     if "claude" not in (config.get("agents") or {}):
         config.setdefault("agents", {})["claude"] = {
             "separator": "bar",
-            "lines": [["model", "git", "cost"], ["mem", "cache_time", "time"]],
+            "lines": [["model", "thinking", "git", "cost"], ["mem", "cache_time", "time"]],
         }
         footer.save_config(config)
     return {"ok": True, "message": "已挂到 Claude Code 状态栏，重启 claude 生效",

@@ -149,3 +149,59 @@ class SlotTests(unittest.TestCase):
                                               "lines": [["model", "evil", 5]]})
         self.assertEqual(saved["agents"]["pi"]["separator"], "bar")
         self.assertEqual(saved["agents"]["pi"]["lines"], [["model"]])
+
+
+class HonestyTests(unittest.TestCase):
+    """状态栏不许编数据：没有就是没有，不是 0、不是 "?"、不是假的 ¥。"""
+
+    def test_missing_values_render_nothing(self):
+        empty = {"tokens": None, "cache_hit": None, "cache_left_ms": None,
+                 "speed": None, "mem": None, "cpu": None, "git": "", "session": ""}
+        for tag in ("tokens", "cache", "cache_time", "speed", "mem", "cpu", "git", "session"):
+            self.assertEqual(footer.render_tag(tag, empty), "", f"{tag} 该省略")
+
+    def test_cost_is_marked_as_estimate(self):
+        self.assertEqual(footer.render_tag("cost", {"cost": 5.27}), "≈¥5.27")
+        self.assertEqual(footer.render_tag("cost", {"cost": 0}), "¥— 未计价")
+        self.assertEqual(footer.render_tag("cost", {"cost": None}), "")
+
+    def test_rate_is_configurable(self):
+        self.assertAlmostEqual(footer.normalize({})["cny_per_usd"], footer.RATE_DEFAULT)
+        self.assertAlmostEqual(footer.normalize({"cny_per_usd": 7.4})["cny_per_usd"], 7.4)
+        # 离谱值回落到默认，不让用户把汇率写成 999
+        self.assertAlmostEqual(footer.normalize({"cny_per_usd": 999})["cny_per_usd"], footer.RATE_DEFAULT)
+        self.assertAlmostEqual(footer.normalize({"cny_per_usd": "abc"})["cny_per_usd"], footer.RATE_DEFAULT)
+
+    def test_zero_usage_transcript_is_no_data(self):
+        """第三方代理会回全 0 用量——那不是“花了 0 元”，是压根没数据。"""
+        import json as _json
+        with tempfile.TemporaryDirectory(prefix="aac-transcript-") as tmp:
+            path = Path(tmp) / "s.jsonl"
+            zero = {"type": "assistant", "timestamp": "2026-10-21T07:21:01.769Z",
+                    "message": {"usage": {"input_tokens": 0, "output_tokens": 0,
+                                          "cache_read_input_tokens": 0,
+                                          "cache_creation_input_tokens": 0}}}
+            path.write_text(_json.dumps(zero) + "\n", encoding="utf-8")
+            self.assertIsNone(footer._last_usage_from_transcript(str(path)))
+
+    def test_real_usage_transcript_gives_tokens(self):
+        import json as _json
+        with tempfile.TemporaryDirectory(prefix="aac-transcript-") as tmp:
+            path = Path(tmp) / "s.jsonl"
+            row = {"type": "assistant", "timestamp": "2026-10-21T07:21:01.769Z",
+                   "message": {"usage": {"input_tokens": 100, "output_tokens": 900,
+                                         "cache_read_input_tokens": 400,
+                                         "cache_creation_input_tokens": 0}}}
+            path.write_text(_json.dumps(row) + "\n", encoding="utf-8")
+            got = footer._last_usage_from_transcript(str(path))
+            self.assertEqual(got["tokens"], 1400)
+            self.assertAlmostEqual(got["cache_hit"], 80.0)
+
+    def test_claude_payload_uses_real_effort_level(self):
+        payload = {"model": {"display_name": "gpt-5.6-sol"}, "effort": {"level": "high"},
+                   "workspace": {"current_dir": "/tmp"}, "cost": {"total_cost_usd": 0}}
+        stats = footer.stats_from_claude_payload(payload)
+        self.assertEqual(stats["thinking"], "high")
+        self.assertEqual(stats["model"], "gpt-5.6-sol")
+        self.assertIsNone(stats["cost"] or None)   # 0 → 视为未计价
+        self.assertIsNone(stats["tokens"])
