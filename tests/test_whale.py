@@ -18,6 +18,7 @@ def fake_home(tmp_path, monkeypatch):
     settings.write_text(json.dumps({"packages": ["npm:foo"]}), encoding="utf-8")
     monkeypatch.setattr(whale, "_target", lambda: home / ".pi" / "pi-extensions" / "aac-whale")
     monkeypatch.setattr(whale, "_settings_file", lambda: settings)
+    monkeypatch.setattr(whale, "_state_file", lambda: home / ".aac" / "whale-state.json")
     return {"home": home, "settings": settings}
 
 
@@ -74,3 +75,44 @@ def test_asset_has_messages():
     assert len(lines) >= 100            # 够多才不重复
     assert "setWorkingMessage" in text  # 接口没写错
     assert text.count('"') % 2 == 0
+
+
+def _settings_with_whimsical(fake_home) -> None:
+    settings = fake_home["settings"]
+    data = json.loads(settings.read_text(encoding="utf-8"))
+    data["packages"].append({
+        "source": "git:https://example.invalid/agent-stuff",
+        "extensions": ["extensions/whimsical.ts"],
+        "skills": [],
+    })
+    settings.write_text(json.dumps(data), encoding="utf-8")
+
+
+def test_install_disables_whimsical_and_remembers_it(fake_home):
+    """梗已经合并进 whale.ts，install 必须把 whimsical 关掉，不然等于白合并。"""
+    _settings_with_whimsical(fake_home)
+    assert whale.status()["conflicts"] == ["extensions/whimsical.ts"]
+
+    whale.install()
+
+    data = json.loads(fake_home["settings"].read_text(encoding="utf-8"))
+    entry = next(item for item in data["packages"]
+                 if isinstance(item, dict) and "agent-stuff" in str(item.get("source")))
+    assert entry["extensions"] == []
+    assert entry["skills"] == []          # 其它资源不动
+    assert whale.status()["conflicts"] == []
+
+    state = json.loads((fake_home["home"] / ".aac" / "whale-state.json").read_text(encoding="utf-8"))
+    assert state["whimsical"]["git:https://example.invalid/agent-stuff"] == ["extensions/whimsical.ts"]
+
+
+def test_uninstall_restores_whimsical(fake_home):
+    _settings_with_whimsical(fake_home)
+    whale.install()
+    whale.uninstall()
+
+    data = json.loads(fake_home["settings"].read_text(encoding="utf-8"))
+    entry = next(item for item in data["packages"]
+                 if isinstance(item, dict) and "agent-stuff" in str(item.get("source")))
+    assert entry["extensions"] == ["extensions/whimsical.ts"]
+    assert whale.status()["conflicts"] == ["extensions/whimsical.ts"]

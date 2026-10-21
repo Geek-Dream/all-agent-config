@@ -121,10 +121,13 @@ aac                    # 启动并自动打开 http://127.0.0.1:8600
 - **已知边界**：只覆盖注册表里声明的字符串（Codex 62 条斜杠命令描述、Pi 23 条）；上游改文案后新条目仍显示英文，`status` 会报「待汉化（N 条英文残留）」，补词表即可
 
 ### 彩蛋：🐳 鲸鱼妹思考提示（Pi 扩展 aac-whale）
-- 每次 turn 把 pi 的 `Working…` 换成一句中文台词，**193 句**洗牌不重复：深海系（下潜 / 换气 / 鲸歌 / 磷虾）+ 鲸鱼妹人格（本鲸委屈但本鲸继续写）+ 码农梗 + 摸鱼梗，另合并了 `mitsuhiko/agent-stuff` 的 whimsical 全套词条（避免两个扩展抢同一个提示位）
+- 每次 turn 把 pi 的 `Working…` 换成一句中文台词，**一份池子、195 句**、洗牌不重复：深海系（下潜 / 换气 / 鲸歌 / 磷虾）+ 鲸鱼妹人格（本鲸委屈但本鲸继续写）+ 码农梗 + 摸鱼梗；原来 `mitsuhiko/agent-stuff` 的 whimsical 那 95 句已整段并进同一个数组，不另开一套
+- 安装时自动把 whimsical 扩展从 `packages` 里摘掉（记在 `~/.aac/whale-state.json`），否则两边都写同一条工作行——谁后加载谁赢，等于白合并；卸下时原样放回
+- 文件里两次写入（当场一次 + `setTimeout` 兜底一次）：pi 按包类型排序加载，本地目录扩展排在 git 包之前，延后写才能保证最后落地的是合并后的这份
 - 资源在 `assets/pi-whale/`，安装 = 复制到 `~/.pi/pi-extensions/aac-whale` + 注册进 `~/.pi/agent/settings.json` 的 `packages`（改前自动备份 `settings.json.aac-bak`）
 - 命令：`python -m app.whale --install` / `--uninstall`，不带参数看状态；设置页「🐳 鲸鱼妹思考提示」也有装上 / 卸下按钮
 - **跨机同步**：`~/.pi/pi-extensions` 与 `~/.pi/agent/settings.json` 都在 Pi 的导出分类里，所以导出 `.aac` 带到 Windows 导入后，扩展和注册一起回来（路径自动映射）
+- **已知边界**：`pi-fusion` 在外援干活那几秒会占用工作行显示「副驾 模型 12s $0.003」，此时鲸鱼妹让位，外援结束自动回来
 
 ## 目录结构
 

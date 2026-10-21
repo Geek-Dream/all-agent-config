@@ -5,7 +5,9 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
  *
  * 每次 turn 开始，随机（洗牌不重复）给 pi 的行内提示换成一句中文小台词。
  * 玩梗为主，技术为辅；深海系 + 码农系 + 撒娇系混搭。
- * 后半段 merged 自 mitsuhiko/agent-stuff 的 whimsical，避免两个扩展抢同一个提示位。
+ *
+ * 这里是**唯一一份**提示语：原本 mitsuhiko/agent-stuff 的 whimsical 那套梗已整段并进来，
+ * 安装时会关掉 whimsical 扩展，两套梗在一个池子里洗牌，不再互相覆盖。
  *
  * 安装 / 更新 / 卸载：在 all-agent-config 项目里跑
  *   python -m app.whale --install     # 复制到 ~/.pi/pi-extensions/aac-whale 并注册
@@ -228,9 +230,9 @@ export default function (pi: ExtensionAPI) {
     } catch {
       return;
     }
-    // 其它扩展（whimsical 等）也会在同一次 turn_start 里写这一行，而 pi 按
-    // 包类型排序加载：本地目录扩展排在 git 包之前，所以鲸鱼妹总是先写、随后
-    // 被 whimsical 覆盖。延后一拍再写一次，把最后一句话留给自己。
+    // 兜底：万一有人手动把 whimsical 重新打开，它还会在同一次 turn_start 里
+    // 写同一个提示位（pi 按包类型排序加载，本地扩展在先，会被盖掉）。
+    // 延后一拍再写一次，保证合并后的这份台账是最后落地的那个。
     setTimeout(() => {
       try {
         ctx.ui.setWorkingMessage(line);
